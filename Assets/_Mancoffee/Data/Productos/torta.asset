@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e9d40bc9eb34b3841a99f85afd2868b2, type: 3}
+  m_Name: torta
+  m_EditorClassIdentifier: Assembly-CSharp::Mancoffee.Data.ProductData
+  id: torta
+  displayName: "Porci\xF3n de torta"
+  station: {fileID: 11400000, guid: e839080c57a3f7a49bac50ef1fffbbd3, type: 2}
+  price: 11
+  ingredientCost: 4
+  prepTime: 3
+  icon: {fileID: 21300000, guid: f233eb147fcd4134da3714326f4b0c69, type: 3}

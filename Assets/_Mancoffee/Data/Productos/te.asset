@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e9d40bc9eb34b3841a99f85afd2868b2, type: 3}
+  m_Name: te
+  m_EditorClassIdentifier: Assembly-CSharp::Mancoffee.Data.ProductData
+  id: te
+  displayName: "T\xE9"
+  station: {fileID: 11400000, guid: 2b79be9e0c406c643805f519af4a2ccc, type: 2}
+  price: 5
+  ingredientCost: 1
+  prepTime: 3
+  icon: {fileID: 21300000, guid: d006c96c9709c3d4b953716c08f45332, type: 3}

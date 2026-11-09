@@ -32,6 +32,13 @@ namespace Mancoffee.CameraSystem
         private PixelPerfectCamera pixelPerfect;
         private int zoomIndex;
         private bool dragging;
+        private Vector3? focusTarget;
+
+        /// <summary>Lleva la cámara suavemente hasta un punto del mundo (por ejemplo, "Ir a la mesa").</summary>
+        public void FocusOn(Vector3 worldPosition)
+        {
+            focusTarget = new Vector3(worldPosition.x, worldPosition.y, transform.position.z);
+        }
         private Vector3 dragOriginWorld;
 
         private void Awake()
@@ -46,6 +53,12 @@ namespace Mancoffee.CameraSystem
             Keyboard kb = Keyboard.current;
             Mouse mouse = Mouse.current;
             if (kb == null || mouse == null) return;
+
+            if (focusTarget.HasValue)
+            {
+                transform.position = Vector3.Lerp(transform.position, focusTarget.Value, 1f - Mathf.Exp(-8f * Time.unscaledDeltaTime));
+                if ((transform.position - focusTarget.Value).sqrMagnitude < 0.0004f) focusTarget = null;
+            }
 
             HandleKeyboardPan(kb);
             HandleDragPan(mouse);
@@ -62,6 +75,7 @@ namespace Mancoffee.CameraSystem
             if (kb.dKey.isPressed || kb.rightArrowKey.isPressed) dir.x += 1;
 
             if (dir == Vector2.zero) return;
+            focusTarget = null;
             // Más lejos = paneo más rápido, para que se sienta igual en todos los zooms.
             float zoomFactor = zoomLevels[zoomIndex].x / (float)zoomLevels[startZoomIndex].x;
             transform.position += (Vector3)(dir.normalized * (panSpeed * zoomFactor * Time.unscaledDeltaTime));

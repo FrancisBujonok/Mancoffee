@@ -41,6 +41,14 @@ namespace Mancoffee.Core
         public DailyLedger LastReport { get; private set; }
         public int LastSalaries { get; private set; }
 
+        public float OpenMinutes => openHour * 60f;
+        public float CloseMinutes => closeHour * 60f;
+        public int OpenHour => openHour;
+        public int CloseHour => closeHour;
+
+        /// <summary>Cuánto del horario de apertura pasó, de 0 a 1.</summary>
+        public float DayProgress => Mathf.Clamp01((Minutes - OpenMinutes) / Mathf.Max(1f, CloseMinutes - OpenMinutes));
+
         public string ClockText => $"{(int)(Minutes / 60f) % 24:00}:{(int)(Minutes % 60f):00}";
 
         private void Awake()
@@ -87,6 +95,7 @@ namespace Mancoffee.Core
         public void StartNextDay()
         {
             CafeState.Instance.StartNewDay();
+            foreach (Employee e in staff.Employees) e.ResetDayStats();
             ResetDay();
             SetModalPause(false);
             saveSystem.Save();

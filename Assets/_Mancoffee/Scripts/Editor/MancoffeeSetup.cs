@@ -102,6 +102,7 @@ namespace Mancoffee.EditorTools
             EnsureFolders();
             GenerateContent();
             BuildPrefabs();
+            MancoffeeUiSetup.GenerateUiAssets();
             BuildScene();
         }
 
@@ -352,7 +353,6 @@ namespace Mancoffee.EditorTools
             var save = systems.AddComponent<SaveSystem>();
             var dayCycle = systems.AddComponent<DayCycle>();
             var bootstrap = systems.AddComponent<GameBootstrap>();
-            var hud = systems.AddComponent<GameHud>();
 
             Wire(gridManager, ("grid", grid), ("floorTilemap", floor), ("database", db),
                  ("entranceTile", AssetDatabase.LoadAssetAtPath<Tile>($"{TileFolder}/Entrada.asset")));
@@ -376,8 +376,8 @@ namespace Mancoffee.EditorTools
                  ("furnitureParent", furnitureGo.transform));
             Wire(dayCycle, ("spawner", spawner), ("staff", staff), ("saveSystem", save));
             Wire(bootstrap, ("grid", gridManager), ("staff", staff), ("saveSystem", save), ("dayCycle", dayCycle));
-            Wire(hud, ("build", build), ("staff", staff), ("tasks", tasks), ("spawner", spawner), ("day", dayCycle),
-                 ("saveSystem", save), ("wallRenderer", wallRenderer), ("bootstrap", bootstrap));
+
+            MancoffeeUiSetup.AddInterface(cam, gridManager, staff, spawner, build);
 
             EditorSceneManager.MarkSceneDirty(gridGo.scene);
             EditorSceneManager.SaveScene(gridGo.scene);

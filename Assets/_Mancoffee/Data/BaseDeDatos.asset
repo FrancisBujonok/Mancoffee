@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1b592c7fa9c502d4fb6051f956c831d6, type: 3}
+  m_Name: BaseDeDatos
+  m_EditorClassIdentifier: Assembly-CSharp::Mancoffee.Data.GameDatabase
+  furniture:
+  - {fileID: 11400000, guid: 0df6b8014dd424d4cb8ced9409d9b56c, type: 2}
+  - {fileID: 11400000, guid: c2a050232bf815f4896a109df635ad2d, type: 2}
+  - {fileID: 11400000, guid: 27d64056f4c08134fbc129f5e1cbd74c, type: 2}
+  - {fileID: 11400000, guid: 2b79be9e0c406c643805f519af4a2ccc, type: 2}
+  - {fileID: 11400000, guid: e839080c57a3f7a49bac50ef1fffbbd3, type: 2}
+  - {fileID: 11400000, guid: c5320c4d9f5377b46be478a8756d36c9, type: 2}
+  - {fileID: 11400000, guid: a103ebfb7b3168c44b6e2df84cd5bc54, type: 2}
+  products:
+  - {fileID: 11400000, guid: 0d271b0e974f22b42b4e456b9197f61e, type: 2}
+  - {fileID: 11400000, guid: da93e7b38fb641c49a441c3c9300dd72, type: 2}
+  - {fileID: 11400000, guid: 01add25656cdb4f4d999167674d25474, type: 2}
+  - {fileID: 11400000, guid: 2bbe2de994f01f84688c3c651a815329, type: 2}
+  - {fileID: 11400000, guid: 380c05d6b23b1c44c9e93e2886ff07d7, type: 2}
+  floorTypes:
+  - {fileID: 11400000, guid: 6022a8bb59d12684ea10b012c51fe471, type: 2}
+  - {fileID: 11400000, guid: 117fe0e8fbc9f244d889d4f07f757987, type: 2}
+  - {fileID: 11400000, guid: a0b61db1506ef334e8545296ae716fb0, type: 2}
+  - {fileID: 11400000, guid: be4432eae62a4c04d8cf9b00a421e724, type: 2}

@@ -12,17 +12,22 @@ namespace Mancoffee.Staff
 {
     public enum StaffMode
     {
+        /// <summary>Con la cola vacía, elige solo qué hacer (el "libre albedrío" de Los Sims).</summary>
         Automatico,
+        /// <summary>Solo hace lo que le asigna el jugador.</summary>
         Manual
     }
 
     /// <summary>
-    /// Un empleado. Ejecuta tareas de su cola (asignadas por el jugador) y, si está en automático,
-    /// toma solo las pendientes. No sabe ni le importa quién le dio cada tarea.
+    /// Un empleado. Ejecuta las acciones de su cola en orden (como en Los Sims: hasta 8, cancelables)
+    /// y, si está en automático y la cola queda vacía, toma solo la tarea pendiente más urgente.
     /// </summary>
     [RequireComponent(typeof(SortingGroup), typeof(GridMover))]
     public class Employee : MonoBehaviour
     {
+        /// <summary>Máximo de acciones entre la actual y la cola.</summary>
+        public const int MaxActions = 8;
+
         private enum Phase
         {
             None,
@@ -30,7 +35,8 @@ namespace Mancoffee.Staff
             AtCustomer,
             FindingStation,
             GoingToStation,
-            Preparing
+            Preparing,
+            GoingToCell
         }
 
         [Header("Referencias")]
@@ -61,9 +67,34 @@ namespace Mancoffee.Staff
         public string DisplayName { get; private set; }
         public StaffMode Mode { get; set; }
         public int Salary { get; private set; }
+        public Color Tint { get; private set; } = Color.white;
+        public Sprite Portrait => visual != null ? visual.sprite : null;
+        public int TasksDoneToday { get; private set; }
+
         public IReadOnlyList<StaffTask> Queue => queue;
         public StaffTask Current => current;
         public Vector2Int CurrentCell => mover.PathStart;
+
+        /// <summary>La actual primero y después la cola.</summary>
+        public IEnumerable<StaffTask> AllTasks
+        {
+            get
+            {
+                if (current != null) yield return current;
+                foreach (StaffTask t in queue) yield return t;
+            }
+        }
+
+        /// <summary>Cuántas acciones tiene encima (para repartir trabajo).</summary>
+        public int Load => queue.Count + (current != null ? 1 : 0);
+
+        public bool HasRoom => Load < MaxActions;
+
+        /// <summary>Avance de lo que está haciendo ahora (preparar, tomar pedido, cobrar), de 0 a 1.</summary>
+        public float Progress =>
+            (phase == Phase.Preparing || phase == Phase.AtCustomer) && timerTotal > 0f
+                ? 1f - Mathf.Clamp01(timer / timerTotal)
+                : 0f;
 
         public string StatusText
         {
@@ -72,20 +103,21 @@ namespace Mancoffee.Staff
                 if (current == null)
                     return Mode == StaffMode.Manual ? "Esperando órdenes" : "Libre";
 
-                string product = current.Product != null ? current.Product.displayName : "";
+                string product = current.Product != null ? current.Product.displayName.ToLowerInvariant() : "";
                 return phase switch
                 {
-                    Phase.GoingToCustomer => delivering ? $"Llevando {product}" :
-                        current.Type == TaskType.TomarPedido ? "Yendo a tomar un pedido" : "Yendo a cobrar",
+                    Phase.GoingToCell => "Caminando",
+                    Phase.GoingToCustomer => delivering ? $"Lleva {product}" :
+                        current.Type == TaskType.TomarPedido ? "Va a tomar un pedido" : "Va a cobrar",
                     Phase.AtCustomer => current.Type switch
                     {
-                        TaskType.TomarPedido => "Tomando pedido",
-                        TaskType.Cobrar => "Cobrando",
-                        _ => "Sirviendo"
+                        TaskType.TomarPedido => "Toma un pedido",
+                        TaskType.Cobrar => "Cobra",
+                        _ => "Sirve"
                     },
-                    Phase.FindingStation => $"Esperando una estación libre para {product}",
-                    Phase.GoingToStation => $"Yendo a preparar {product}",
-                    Phase.Preparing => $"Preparando {product} ({Mathf.RoundToInt(100f * (1f - timer / timerTotal))}%)",
+                    Phase.FindingStation => $"Espera estación libre",
+                    Phase.GoingToStation => $"Va a preparar {product}",
+                    Phase.Preparing => $"Prepara {product}",
                     _ => "Libre"
                 };
             }
@@ -99,22 +131,59 @@ namespace Mancoffee.Staff
             DisplayName = displayName;
             Mode = mode;
             Salary = salary;
+            Tint = tint;
             visual.color = tint;
             name = $"Empleado {displayName}";
             mover.Init(grid, grid.EntranceCell);
             RefreshVisuals();
         }
 
-        // =========================== Cola de tareas ===========================
+        public void ResetDayStats() => TasksDoneToday = 0;
 
-        public void Enqueue(StaffTask task) => queue.Add(task);
-
-        /// <summary>El jugador le saca una tarea: vuelve a la bolsa de pendientes.</summary>
-        public void Unassign(StaffTask task)
+        /// <summary>¿El punto del mundo cae sobre el dibujo del empleado?</summary>
+        public bool ContainsPoint(Vector2 worldPoint)
         {
-            if (queue.Remove(task)) TaskManager.Instance.ReturnToPool(task);
-            else if (task == current) GiveUp();
+            Bounds b = visual.bounds;
+            b.Expand(new Vector3(0.1f, 0.05f, 0f));
+            return b.Contains(new Vector3(worldPoint.x, worldPoint.y, b.center.z));
         }
+
+        // =========================== Cola de acciones ===========================
+
+        /// <summary>Agrega una acción al final de la cola. Devuelve false si está llena.</summary>
+        public bool Enqueue(StaffTask task)
+        {
+            if (!HasRoom) return false;
+            task.Assignee = this;
+            queue.Add(task);
+            return true;
+        }
+
+        /// <summary>Orden directa "Ir aquí".</summary>
+        public bool WalkTo(Vector2Int cell)
+        {
+            var task = new StaffTask(TaskType.IrA, null, null) { Cell = cell };
+            return Enqueue(task);
+        }
+
+        /// <summary>Saca una tarea sin devolverla a la bolsa (otro empleado la va a tomar). Devuelve true si la tenía.</summary>
+        public bool Release(StaffTask task)
+        {
+            if (queue.Remove(task)) return true;
+            if (task != current) return false;
+            Abort();
+            return true;
+        }
+
+        /// <summary>Cancelar desde la interfaz (como tocar un ícono de la cola en Los Sims): la tarea vuelve a pendientes.</summary>
+        public void CancelTask(StaffTask task)
+        {
+            if (!Release(task)) return;
+            if (task.Type != TaskType.IrA) TaskManager.Instance.ReturnToPool(task);
+        }
+
+        /// <summary>Compatibilidad con el código anterior.</summary>
+        public void Unassign(StaffTask task) => CancelTask(task);
 
         public void CancelTasksFor(Customer customer)
         {
@@ -157,23 +226,40 @@ namespace Mancoffee.Staff
 
             if (current == null) return;
 
+            current.Assignee = this;
             failCount = 0;
             retryTimer = 0f;
             waitTime = 0f;
             delivering = false;
-            if (current.Type == TaskType.PrepararYServir)
+
+            switch (current.Type)
             {
-                phase = Phase.FindingStation;
-            }
-            else
-            {
-                phase = Phase.GoingToCustomer;
-                GoToCustomer();
+                case TaskType.IrA:
+                    phase = Phase.GoingToCell;
+                    if (!mover.MoveTo(current.Cell))
+                    {
+                        CafeState.Instance?.Notify($"{DisplayName} no puede llegar ahí", NoteKind.Malo);
+                        Finish();
+                    }
+                    break;
+                case TaskType.PrepararYServir:
+                    phase = Phase.FindingStation;
+                    break;
+                default:
+                    phase = Phase.GoingToCustomer;
+                    GoToCustomer();
+                    break;
             }
         }
 
         private void RunTask()
         {
+            if (current.Type == TaskType.IrA)
+            {
+                if (mover.ConsumeArrived() || mover.Status == MoveStatus.Blocked || mover.Status == MoveStatus.Idle) Finish();
+                return;
+            }
+
             Customer customer = current.Customer;
             if (current.Cancelled || customer == null || customer.State == CustomerState.Saliendo)
             {
@@ -279,7 +365,13 @@ namespace Mancoffee.Staff
             {
                 case TaskType.TomarPedido:
                     ProductData product = customer.TakeOrder(MenuService.GetAvailableProducts(grid));
-                    if (product != null) TaskManager.Instance.Request(TaskType.PrepararYServir, customer, product);
+                    if (product != null)
+                    {
+                        // Como en Los Sims: lo que empezaste lo seguís. El empleado en manual se encola la preparación;
+                        // el automático la deja en pendientes para quien esté más libre.
+                        StaffTask prep = TaskManager.Instance.Request(TaskType.PrepararYServir, customer, product);
+                        if (Mode == StaffMode.Manual) TaskManager.Instance.AssignAny(prep, this);
+                    }
                     break;
 
                 case TaskType.PrepararYServir:
@@ -315,7 +407,7 @@ namespace Mancoffee.Staff
             if (retry()) return;
             if (++failCount > 5)
             {
-                CafeState.Instance?.Notify($"{DisplayName} no encuentra cómo llegar");
+                CafeState.Instance?.Notify($"{DisplayName} no encuentra cómo llegar", NoteKind.Malo);
                 current.RetryAfter = Time.time + 5f;
                 GiveUp();
             }
@@ -356,6 +448,7 @@ namespace Mancoffee.Staff
 
         private void Finish()
         {
+            if (current != null && current.Type != TaskType.IrA) TasksDoneToday++;
             ReleaseStation();
             current = null;
             phase = Phase.None;

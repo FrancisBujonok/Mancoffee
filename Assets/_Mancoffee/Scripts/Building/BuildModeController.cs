@@ -54,6 +54,15 @@ namespace Mancoffee.Building
         private int movingOriginalRotation;
 
         public bool IsBuildMode => buildMode;
+
+        // Datos de la previsualización para la interfaz (etiqueta junto al fantasma, vista previa de la caja).
+        public Vector2Int HoverCell => hoverCell;
+        public FurnitureData PreviewData => CurrentData;
+        public bool PreviewVisible { get; private set; }
+        public bool PreviewFits { get; private set; }
+        public bool PreviewAffordable { get; private set; } = true;
+        public Vector3 PreviewWorld { get; private set; }
+        public FloorTypeData SelectedFloor => FloorTypes.Count > 0 ? FloorTypes[floorIndex] : null;
         public BuildTool Tool => tool;
         public int SelectedIndex => selectedIndex;
         public int FloorIndex => floorIndex;
@@ -215,6 +224,9 @@ namespace Mancoffee.Building
         private void UpdatePreview(bool overUI)
         {
             HidePreview();
+            PreviewVisible = false;
+            PreviewFits = false;
+            PreviewAffordable = true;
             if (overUI) return;
 
             switch (tool)
@@ -228,9 +240,12 @@ namespace Mancoffee.Building
                     ghost.enabled = true;
                     ghost.sprite = data.GetSprite(rotation);
                     ghost.transform.position = gridManager.CellToWorld(hoverCell);
-                    bool ok = gridManager.CanPlace(data.GetCells(hoverCell, rotation)) &&
-                              (moving != null || Cafe.CanAfford(data.price));
-                    ghost.color = ok ? validColor : invalidColor;
+                    PreviewFits = gridManager.CanPlace(data.GetCells(hoverCell, rotation));
+                    PreviewAffordable = moving != null || Cafe.CanAfford(data.price);
+                    PreviewVisible = true;
+                    Vector2Int s = data.GetSize(rotation);
+                    PreviewWorld = gridManager.CellToWorldInterpolated(new Vector2(hoverCell.x + s.x * 0.5f, hoverCell.y + s.y * 0.5f));
+                    ghost.color = PreviewFits && PreviewAffordable ? validColor : invalidColor;
                     break;
                 }
                 case BuildTool.Suelo:

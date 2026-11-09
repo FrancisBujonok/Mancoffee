@@ -69,6 +69,9 @@ namespace Mancoffee.Customers
         public Vector2Int SeatCell => seatCell;
         public float PatienceRatio => Mathf.Clamp01(patience / maxPatience);
 
+        /// <summary>"Mesa 3" mientras está sentado o yendo a sentarse.</summary>
+        public string TableLabel { get; private set; } = "Sin mesa";
+
         public bool IsSeated => State == CustomerState.EsperandoMozo || State == CustomerState.EsperandoPedido ||
                                 State == CustomerState.Comiendo || State == CustomerState.EsperandoCuenta;
 
@@ -119,12 +122,12 @@ namespace Mancoffee.Customers
                 case CustomerState.EsperandoMozo:
                 case CustomerState.EsperandoPedido:
                 case CustomerState.EsperandoCuenta:
-                    if (!SeatStillMine()) { Leave(true); break; }
+                    if (!SeatStillMine()) { Leave(true, AngryReason.SinSilla); break; }
                     if (!attended) Drain(State == CustomerState.EsperandoPedido ? 0.7f : 1f);
                     break;
 
                 case CustomerState.Comiendo:
-                    if (!SeatStillMine()) { Leave(true); break; }
+                    if (!SeatStillMine()) { Leave(true, AngryReason.SinSilla); break; }
                     timer -= Time.deltaTime;
                     if (timer <= 0f)
                     {
@@ -152,8 +155,8 @@ namespace Mancoffee.Customers
             if (State != CustomerState.EsperandoMozo) return null;
             if (menu == null || menu.Count == 0)
             {
-                CafeState.Instance?.Notify("Un cliente se fue: no hay nada en el menú (faltan estaciones)");
-                Leave(true);
+                CafeState.Instance?.Notify("Un cliente se fue: no hay nada en el menú (faltan estaciones)", NoteKind.Malo);
+                Leave(true, AngryReason.SinMozo);
                 return null;
             }
 
@@ -179,13 +182,21 @@ namespace Mancoffee.Customers
 
             price = Order.price;
             tip = Mathf.RoundToInt(Order.price * maxTipRatio * PatienceRatio);
-            CafeState.Instance?.RegisterHappyCustomer();
-            Leave(false);
+            CafeState.Instance?.RegisterHappyCustomer(Order);
+            Leave(false, AngryReason.SinMesa);
             return true;
         }
 
         /// <summary>Se va sin enojarse ni pagar (por ejemplo, al cerrar el local).</summary>
-        public void ForceLeave() => Leave(false);
+        public void ForceLeave() => Leave(false, AngryReason.SinMesa);
+
+        /// <summary>¿El punto del mundo cae sobre el dibujo del cliente?</summary>
+        public bool ContainsPoint(Vector2 worldPoint)
+        {
+            Bounds b = visual.bounds;
+            b.Expand(new Vector3(0.1f, 0.05f, 0f));
+            return b.Contains(new Vector3(worldPoint.x, worldPoint.y, b.center.z));
+        }
 
         // =========================== Asiento ===========================
 
@@ -197,7 +208,7 @@ namespace Mancoffee.Customers
             foreach (PlacedFurniture f in grid.AllFurniture)
             {
                 if (f.Data.category != FurnitureCategory.Asiento || f.ReservedBy != null) continue;
-                if (!IsNextToTable(f)) continue;
+                if (grid.GetTableNextTo(f.Origin) == null) continue;
 
                 List<Vector2Int> candidate = GridPathfinder.FindPath(grid, mover.PathStart, f.Origin);
                 if (candidate == null) continue;
@@ -214,21 +225,8 @@ namespace Mancoffee.Customers
             seat = best;
             seatCell = best.Origin;
             best.ReservedBy = this;
+            TableLabel = grid.TableLabelFor(seatCell);
             State = CustomerState.CaminandoAMesa;
-        }
-
-        private bool IsNextToTable(PlacedFurniture chair)
-        {
-            foreach (Vector2Int cell in chair.OccupiedCells)
-            foreach (Vector2Int dir in Orthogonal)
-            {
-                Vector2Int n = cell + dir;
-                PlacedFurniture neighbour = grid.GetFurnitureAt(n);
-                if (neighbour != null && neighbour != chair &&
-                    neighbour.Data.category == FurnitureCategory.Mesa && !grid.HasWallBetween(cell, n))
-                    return true;
-            }
-            return false;
         }
 
         private bool SeatStillMine() =>
@@ -239,6 +237,7 @@ namespace Mancoffee.Customers
             ReleaseSeat();
             mover.Stop();
             retryTimer = 0f;
+            TableLabel = "Sin mesa";
             State = CustomerState.BuscandoMesa;
         }
 
@@ -251,6 +250,7 @@ namespace Mancoffee.Customers
         private void SitDown()
         {
             State = CustomerState.EsperandoMozo;
+            TableLabel = grid.TableLabelFor(seatCell);
             // La raíz queda apenas delante de la silla (orden de dibujado) y el dibujo sube para quedar sentado encima.
             transform.position = seat.SortPosition + new Vector3(0f, -0.01f, 0f);
             visual.transform.localPosition = new Vector3(0f, seatedHeight, 0f);
@@ -259,10 +259,11 @@ namespace Mancoffee.Customers
 
         // =========================== Salida ===========================
 
-        private void Leave(bool angry)
+        private void Leave(bool angry, AngryReason reason)
         {
             if (State == CustomerState.Saliendo) return;
 
+            CustomerState previous = State;
             bool wasSeated = IsSeated;
             State = CustomerState.Saliendo;
             attended = false;
@@ -271,7 +272,17 @@ namespace Mancoffee.Customers
             if (angry)
             {
                 visual.color = Color.Lerp(baseTint, new Color(1f, 0.25f, 0.25f), 0.6f);
-                CafeState.Instance?.RegisterAngryCustomer();
+                if (reason != AngryReason.SinSilla)
+                {
+                    reason = previous switch
+                    {
+                        CustomerState.EsperandoMozo => AngryReason.SinMozo,
+                        CustomerState.EsperandoPedido => AngryReason.SinPedido,
+                        CustomerState.EsperandoCuenta => AngryReason.SinCuenta,
+                        _ => reason == AngryReason.SinMozo ? AngryReason.SinMozo : AngryReason.SinMesa
+                    };
+                }
+                CafeState.Instance?.RegisterAngryCustomer(reason, Order);
             }
 
             ReleaseSeat();
@@ -332,7 +343,7 @@ namespace Mancoffee.Customers
         {
             patience -= Time.deltaTime * rate;
             if (patience > 0f) return false;
-            Leave(true);
+            Leave(true, AngryReason.SinMesa);
             return true;
         }
 

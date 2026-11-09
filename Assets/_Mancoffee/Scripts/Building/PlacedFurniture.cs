@@ -27,6 +27,9 @@ namespace Mancoffee.Building
         /// <summary>Quién lo reservó: el cliente que va a esa silla, el empleado que usa esa cafetera...</summary>
         public object ReservedBy { get; set; }
 
+        /// <summary>Número visible de la mesa ("Mesa 3"). Solo lo usan las mesas; 0 = sin asignar.</summary>
+        public int TableNumber { get; internal set; }
+
         public Vector2Int Size => Data.GetSize(Rotation);
         public IEnumerable<Vector2Int> OccupiedCells => Data.GetCells(Origin, Rotation);
 

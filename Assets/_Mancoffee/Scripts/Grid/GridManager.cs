@@ -154,6 +154,8 @@ namespace Mancoffee.GridSystem
         {
             foreach (Vector2Int cell in furniture.OccupiedCells)
                 occupancy[cell] = furniture;
+            if (furniture.Data.category == FurnitureCategory.Mesa && furniture.TableNumber == 0)
+                furniture.TableNumber = NextTableNumber();
             allFurniture.Add(furniture);
             furniture.SetPlaced(true);
             GridChanged?.Invoke();
@@ -169,6 +171,37 @@ namespace Mancoffee.GridSystem
             // Quien lo tenía reservado (un cliente yendo a esa silla, un empleado usando la cafetera) lo pierde.
             furniture.ReservedBy = null;
             GridChanged?.Invoke();
+        }
+
+        // =========================== Mesas ===========================
+
+        /// <summary>El número libre más bajo, para que las mesas se llamen "Mesa 1", "Mesa 2"...</summary>
+        private int NextTableNumber()
+        {
+            var used = new HashSet<int>();
+            foreach (PlacedFurniture f in allFurniture)
+                if (f.TableNumber > 0) used.Add(f.TableNumber);
+            int n = 1;
+            while (used.Contains(n)) n++;
+            return n;
+        }
+
+        /// <summary>La mesa pegada a una celda (sin pared de por medio), o null.</summary>
+        public PlacedFurniture GetTableNextTo(Vector2Int cell)
+        {
+            foreach (Vector2Int dir in Orthogonal)
+            {
+                PlacedFurniture f = GetFurnitureAt(cell + dir);
+                if (f != null && f.Data.category == FurnitureCategory.Mesa && !HasWallBetween(cell, cell + dir))
+                    return f;
+            }
+            return null;
+        }
+
+        public string TableLabelFor(Vector2Int seatCell)
+        {
+            PlacedFurniture table = GetTableNextTo(seatCell);
+            return table != null ? $"Mesa {table.TableNumber}" : "Sin mesa";
         }
 
         // =========================== Suelo ===========================

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Mancoffee.Data;
 using UnityEngine;
 
 namespace Mancoffee.Core
@@ -14,6 +15,31 @@ namespace Mancoffee.Core
         Contrataciones
     }
 
+    /// <summary>Por qué se fue enojado un cliente. Sirve para el resumen y los consejos del día.</summary>
+    public enum AngryReason
+    {
+        SinMesa,
+        SinMozo,
+        SinPedido,
+        SinCuenta,
+        SinSilla
+    }
+
+    public enum NoteKind
+    {
+        Info,
+        Bueno,
+        Malo
+    }
+
+    public class GameNote
+    {
+        public int Id;
+        public string Text;
+        public NoteKind Kind;
+        public float Time;
+    }
+
     /// <summary>Movimientos de dinero y clientes de un día. Los gastos se guardan en positivo.</summary>
     public class DailyLedger
     {
@@ -21,6 +47,15 @@ namespace Mancoffee.Core
 
         public int Served;
         public int Angry;
+
+        /// <summary>Productos cobrados hoy.</summary>
+        public readonly Dictionary<ProductData, int> Sold = new();
+
+        /// <summary>Motivos por los que se fueron clientes enojados.</summary>
+        public readonly Dictionary<AngryReason, int> AngryReasons = new();
+
+        /// <summary>Qué producto esperaban los que se fueron sin recibir su pedido.</summary>
+        public readonly Dictionary<ProductData, int> AngryProducts = new();
 
         public void Add(MoneyCategory category, int amount)
         {
@@ -36,10 +71,26 @@ namespace Mancoffee.Core
                                Get(MoneyCategory.Sueldos) + Get(MoneyCategory.Contrataciones);
 
         public int Net => Income - Expenses;
+
+        public int OrdersSold
+        {
+            get
+            {
+                int n = 0;
+                foreach (int v in Sold.Values) n += v;
+                return n;
+            }
+        }
+
+        public static void Increment<T>(Dictionary<T, int> dict, T key)
+        {
+            dict.TryGetValue(key, out int v);
+            dict[key] = v + 1;
+        }
     }
 
     /// <summary>
-    /// Estado general de la cafetería: dinero, reputación, día actual y el balance de hoy.
+    /// Estado general de la cafetería: dinero, reputación, día actual, el balance de hoy y los avisos.
     /// Todo gasto e ingreso pasa por acá, así el resumen del día siempre cuadra.
     /// </summary>
     [DefaultExecutionOrder(-100)]
@@ -50,8 +101,8 @@ namespace Mancoffee.Core
         [SerializeField] private int startingMoney = 1500;
         [SerializeField] private float startingReputation = 3f;
 
-        private string message;
-        private float messageUntil;
+        private readonly List<GameNote> notes = new();
+        private int nextNoteId = 1;
 
         public int Money { get; private set; }
 
@@ -61,8 +112,17 @@ namespace Mancoffee.Core
         public int Day { get; private set; }
         public DailyLedger Today { get; private set; } = new();
 
-        /// <summary>Último aviso para el jugador, mientras siga vigente.</summary>
-        public string Message => Time.unscaledTime < messageUntil ? message : null;
+        public IReadOnlyList<GameNote> Notes => notes;
+
+        /// <summary>Último aviso, si tiene menos de 3 segundos.</summary>
+        public string Message
+        {
+            get
+            {
+                GameNote note = LatestNote(3f);
+                return note?.Text;
+            }
+        }
 
         private void Awake()
         {
@@ -88,7 +148,7 @@ namespace Mancoffee.Core
             if (amount <= 0) return true;
             if (Money < amount)
             {
-                Notify($"No alcanza el dinero (faltan ${amount - Money})");
+                Notify($"No alcanza el dinero (faltan ${amount - Money})", NoteKind.Malo);
                 return false;
             }
             Money -= amount;
@@ -110,15 +170,18 @@ namespace Mancoffee.Core
             Today.Add(category, amount);
         }
 
-        public void RegisterHappyCustomer()
+        public void RegisterHappyCustomer(ProductData product)
         {
             Today.Served++;
+            if (product != null) DailyLedger.Increment(Today.Sold, product);
             Reputation = Mathf.Min(5f, Reputation + 0.04f);
         }
 
-        public void RegisterAngryCustomer()
+        public void RegisterAngryCustomer(AngryReason reason, ProductData waitingFor)
         {
             Today.Angry++;
+            DailyLedger.Increment(Today.AngryReasons, reason);
+            if (reason == AngryReason.SinPedido && waitingFor != null) DailyLedger.Increment(Today.AngryProducts, waitingFor);
             Reputation = Mathf.Max(1f, Reputation - 0.1f);
         }
 
@@ -128,10 +191,19 @@ namespace Mancoffee.Core
             Today = new DailyLedger();
         }
 
-        public void Notify(string text, float seconds = 3f)
+        /// <summary>Deja un aviso para el jugador (los post-its de la interfaz).</summary>
+        public void Notify(string text, NoteKind kind = NoteKind.Info)
         {
-            message = text;
-            messageUntil = Time.unscaledTime + seconds;
+            notes.Add(new GameNote { Id = nextNoteId++, Text = text, Kind = kind, Time = UnityEngine.Time.unscaledTime });
+            if (notes.Count > 20) notes.RemoveAt(0);
+        }
+
+        /// <summary>El aviso más reciente si no es más viejo que maxAge segundos.</summary>
+        public GameNote LatestNote(float maxAge)
+        {
+            if (notes.Count == 0) return null;
+            GameNote last = notes[notes.Count - 1];
+            return UnityEngine.Time.unscaledTime - last.Time <= maxAge ? last : null;
         }
     }
 }
