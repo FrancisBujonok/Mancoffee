@@ -340,7 +340,7 @@ Camera:
   far clip plane: 1000
   field of view: 34
   orthographic: 1
-  orthographic size: 5.9375
+  orthographic size: 5.625
   m_Depth: -1
   m_CullingMask:
     serializedVersion: 2
@@ -435,6 +435,7 @@ GameObject:
   - component: {fileID: 582354540}
   - component: {fileID: 582354539}
   - component: {fileID: 582354550}
+  - component: {fileID: 582354551}
   m_Layer: 0
   m_Name: Sistemas
   m_TagString: Untagged
@@ -558,15 +559,8 @@ MonoBehaviour:
   grid: {fileID: 582354548}
   customerPrefab: {fileID: 4253698875357547611, guid: d195288eab0c9984aa900b2650d03827, type: 3}
   customersParent: {fileID: 188478539}
-  spawnInterval: {x: 7, y: 13}
-  maxCustomers: 10
-  tints:
-  - {r: 0.95, g: 0.55, b: 0.45, a: 1}
-  - {r: 0.5, g: 0.7, b: 0.95, a: 1}
-  - {r: 0.65, g: 0.9, b: 0.6, a: 1}
-  - {r: 0.95, g: 0.85, b: 0.45, a: 1}
-  - {r: 0.8, g: 0.6, b: 0.95, a: 1}
-  - {r: 0.6, g: 0.9, b: 0.9, a: 1}
+  spawnInterval: {x: 7, y: 14}
+  maxCustomers: 14
 --- !u!114 &582354545
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -691,6 +685,25 @@ MonoBehaviour:
   ringSprite: {fileID: 21300000, guid: dc9f48abc773c274d860e11c5f2149bc, type: 3}
   orderIcon: {fileID: 21300000, guid: 389330495581db64bb975964d7ae1afc, type: 3}
   billIcon: {fileID: 21300000, guid: d988a254352370a479f20219d113a2db, type: 3}
+--- !u!114 &582354551
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 582354537}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d4066440a095c0d4fb730fef85899758, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Mancoffee.Core.Inventory
+  database: {fileID: 11400000, guid: f30fbff4c2683c9479dc4a7feb274932, type: 2}
+  deliveryMinutes: 60
+  startingCups: 10
+  startingPlates: 8
+  dishPackSize: 4
+  cupPackPrice: 12
+  platePackPrice: 10
 --- !u!1 &619394800
 GameObject:
   m_ObjectHideFlags: 0

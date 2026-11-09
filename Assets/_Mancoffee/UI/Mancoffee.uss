@@ -116,7 +116,7 @@
 .ticket { background-color: #FFFDF7; border-radius: 3px; overflow: hidden; }
 .ticket-edge { height: 8px; background-color: #3F7A47; }
 .ticket-body { padding: 10px 12px 12px 12px; }
-.ticket-mesa { font-size: 24px; color: #6B4B37; }
+.ticket-mesa { font-size: 24px; color: #6B4B37; flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ticket-task { font-size: 18px; white-space: normal; margin-top: 4px; }
 .ticket-pat { flex-direction: row; align-items: center; margin-top: 8px; }
 .patbar { flex-grow: 1; height: 8px; border-radius: 4px; background-color: #E8D3B0; overflow: hidden; margin-right: 6px; }
@@ -136,8 +136,8 @@
 
 /* fichas de accion */
 
-.cards { position: absolute; left: 594px; bottom: 30px; flex-direction: row; align-items: flex-end; }
-.cards--build { left: 700px; }
+.cards { position: absolute; left: 520px; bottom: 30px; flex-direction: row; align-items: flex-end; }
+.cards--build { left: 660px; }
 .card {
     width: 128px; height: 128px; margin-right: 14px;
     background-color: #FBF3E4; border-width: 2px; border-bottom-width: 6px; border-color: #C9A97A;
@@ -484,3 +484,59 @@
     font-size: 22px;
 }
 .unity-label.pie-center { color: #FFFDF7; }
+
+/* fase 1: barra, despensa, precios, pruebas */
+
+.board-rush { margin-top: 8px; }
+.chalkboard .board-rush { color: #FFE48A; }
+
+.supplies-wrap { position: absolute; left: 46px; top: 360px; width: 392px; }
+.supplies { background-color: #FFFDF7; padding: 14px 18px 14px 18px; }
+.supplies-wrap:hover .supplies { background-color: #FFFAEC; }
+.supplies-title { font-size: 24px; }
+.unity-label.supplies-hint { color: #6B4B37; }
+.supply-row { flex-direction: row; align-items: center; margin-top: 8px; }
+.supply-name { width: 92px; }
+.supply-bar { flex-grow: 1; height: 12px; border-radius: 6px; background-color: #E8D3B0; overflow: hidden; margin: 0 10px; }
+.supply-fill { height: 100%; border-radius: 6px; background-color: #3F7A47; }
+.supply-fill--warn { background-color: #D99A2B; }
+.supply-fill--bad { background-color: #C8432C; }
+.supply-value { min-width: 64px; -unity-text-align: middle-right; }
+.unity-label.supply-bad { color: #C8432C; }
+.supply-alerts { flex-direction: row; flex-wrap: wrap; margin-top: 8px; }
+.supply-chip { padding: 2px 10px; border-radius: 999px; margin: 0 6px 6px 0; }
+.unity-label.supply-chip--bad { background-color: #F8CFC4; color: #C8432C; }
+.unity-label.supply-chip--warn { background-color: #FFE48A; }
+
+.pantry-wrap { position: absolute; left: 330px; top: 90px; width: 1260px; }
+.pantry { padding: 26px 32px; }
+.chalkboard .pantry-cash { font-size: 32px; color: #FFE48A; margin-right: 14px; }
+.pantry-list { margin-top: 16px; flex-direction: row; flex-wrap: wrap; justify-content: space-between; }
+.pantry-row {
+    width: 49.4%; flex-direction: row; align-items: center;
+    padding: 10px 12px; margin-bottom: 10px; border-radius: 10px;
+    background-color: rgba(243, 238, 228, 0.07);
+}
+.pantry-icon { width: 56px; height: 56px; margin-right: 14px; border-radius: 8px; background-color: rgba(243, 238, 228, 0.1); align-items: center; justify-content: center; }
+.pantry-icon .icon { width: 32px; height: 32px; --icon-color: #F3EEE4; }
+.pantry-name { font-size: 24px; }
+.chalkboard .pantry-pack { color: #B9C2B5; white-space: normal; }
+.pantry-stock { margin-top: 2px; }
+.chalkboard .pantry-bad { color: #FFB4A3; }
+.chalkboard .pantry-incoming { color: #A8E2A8; }
+.pantry-section { font-size: 28px; width: 100%; margin: 10px 0 8px 0; }
+.pantry-buy { margin-left: 14px; margin-right: 0; min-width: 150px; flex-shrink: 0; }
+.pantry-buy:disabled { opacity: 0.45; }
+
+.price-btn {
+    width: 38px; height: 38px; margin: 0 8px; border-radius: 19px;
+    border-width: 2px; border-color: rgba(243, 238, 228, 0.5);
+    align-items: center; justify-content: center;
+}
+.price-btn:hover { background-color: rgba(243, 238, 228, 0.15); }
+.price-btn .unity-label { font-size: 24px; }
+
+.debug-wrap { position: absolute; right: 60px; top: 300px; width: 440px; }
+.debug { padding: 20px 22px; }
+.debug-grid { flex-direction: row; flex-wrap: wrap; justify-content: space-between; margin-top: 8px; }
+.debug-btn { width: 49%; }
