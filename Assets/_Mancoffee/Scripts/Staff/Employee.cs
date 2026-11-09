@@ -21,6 +21,7 @@ namespace Mancoffee.Staff
     /// <summary>
     /// Un empleado. Ejecuta las acciones de su cola en orden (como en Los Sims: hasta 8, cancelables)
     /// y, si está en automático y la cola queda vacía, toma solo la tarea pendiente más urgente.
+    /// Atiende clientes, prepara pedidos y mantiene el local: levanta vajilla, lava en la bacha y purga la cafetera.
     /// </summary>
     [RequireComponent(typeof(SortingGroup), typeof(GridMover))]
     public class Employee : MonoBehaviour
@@ -36,7 +37,11 @@ namespace Mancoffee.Staff
             FindingStation,
             GoingToStation,
             Preparing,
-            GoingToCell
+            GoingToCell,
+            GoingToTarget,
+            WorkingAtTarget,
+            GoingToSink,
+            DroppingAtSink
         }
 
         [Header("Referencias")]
@@ -49,7 +54,13 @@ namespace Mancoffee.Staff
         [SerializeField] private float orderTime = 1.5f;
         [SerializeField] private float chargeTime = 1.2f;
         [SerializeField] private float deliverTime = 0.5f;
+        [SerializeField] private float pickupTime = 0.8f;
+        [SerializeField] private float dropTime = 0.5f;
+        [SerializeField] private float washSecondsPerDish = 1.2f;
+        [SerializeField] private float purgeTime = 10f;
         [SerializeField] private float progressBarWidthPx = 12f;
+
+        private static float nextSupplyNote;
 
         private GridManager grid;
         private GridMover mover;
@@ -63,6 +74,14 @@ namespace Mancoffee.Staff
         private int failCount;
         private PlacedFurniture station;
         private bool delivering;
+        private bool arrived;
+        private string blockedReason;
+
+        // Vajilla que lleva en la mano o que está lavando.
+        private int carriedCups, carriedPlates;
+        private PlacedFurniture carriedFrom;
+        private PlacedFurniture sink;
+        private int washingCups, washingPlates;
 
         public string DisplayName { get; private set; }
         public StaffMode Mode { get; set; }
@@ -90,11 +109,11 @@ namespace Mancoffee.Staff
 
         public bool HasRoom => Load < MaxActions;
 
-        /// <summary>Avance de lo que está haciendo ahora (preparar, tomar pedido, cobrar), de 0 a 1.</summary>
-        public float Progress =>
-            (phase == Phase.Preparing || phase == Phase.AtCustomer) && timerTotal > 0f
-                ? 1f - Mathf.Clamp01(timer / timerTotal)
-                : 0f;
+        private bool IsWorking => phase == Phase.Preparing || phase == Phase.AtCustomer ||
+                                  phase == Phase.WorkingAtTarget || phase == Phase.DroppingAtSink;
+
+        /// <summary>Avance de lo que está haciendo ahora, de 0 a 1.</summary>
+        public float Progress => IsWorking && timerTotal > 0f ? 1f - Mathf.Clamp01(timer / timerTotal) : 0f;
 
         public string StatusText
         {
@@ -102,6 +121,7 @@ namespace Mancoffee.Staff
             {
                 if (current == null)
                     return Mode == StaffMode.Manual ? "Esperando órdenes" : "Libre";
+                if (!string.IsNullOrEmpty(blockedReason)) return blockedReason;
 
                 string product = current.Product != null ? current.Product.displayName.ToLowerInvariant() : "";
                 return phase switch
@@ -115,9 +135,25 @@ namespace Mancoffee.Staff
                         TaskType.Cobrar => "Cobra",
                         _ => "Sirve"
                     },
-                    Phase.FindingStation => $"Espera estación libre",
+                    Phase.FindingStation => "Espera estación libre",
                     Phase.GoingToStation => $"Va a preparar {product}",
-                    Phase.Preparing => $"Prepara {product}",
+                    Phase.Preparing => station != null && station.State != null && station.State.NeedsPurge
+                        ? $"Prepara {product} (lento)"
+                        : $"Prepara {product}",
+                    Phase.GoingToTarget => current.Type switch
+                    {
+                        TaskType.LevantarVajilla => "Va a levantar vajilla",
+                        TaskType.Lavar => "Va a la bacha",
+                        _ => "Va a purgar la cafetera"
+                    },
+                    Phase.WorkingAtTarget => current.Type switch
+                    {
+                        TaskType.LevantarVajilla => "Levanta vajilla",
+                        TaskType.Lavar => "Lava vajilla",
+                        _ => "Purga el filtro"
+                    },
+                    Phase.GoingToSink => "Lleva vajilla a la bacha",
+                    Phase.DroppingAtSink => "Deja la vajilla",
                     _ => "Libre"
                 };
             }
@@ -187,10 +223,13 @@ namespace Mancoffee.Staff
 
         public void CancelTasksFor(Customer customer)
         {
+            foreach (StaffTask t in queue)
+                if (t.Customer == customer) t.ReturnUnusedVessel();
             queue.RemoveAll(t => t.Customer == customer);
             if (current != null && current.Customer == customer)
             {
                 current.Cancelled = true;
+                current.ReturnUnusedVessel();
                 Abort();
             }
         }
@@ -231,6 +270,7 @@ namespace Mancoffee.Staff
             retryTimer = 0f;
             waitTime = 0f;
             delivering = false;
+            blockedReason = null;
 
             switch (current.Type)
             {
@@ -244,6 +284,13 @@ namespace Mancoffee.Staff
                     break;
                 case TaskType.PrepararYServir:
                     phase = Phase.FindingStation;
+                    break;
+                case TaskType.LevantarVajilla:
+                case TaskType.Lavar:
+                case TaskType.Purgar:
+                    if (!current.TargetAlive) { Finish(); break; }
+                    phase = Phase.GoingToTarget;
+                    GoToTarget();
                     break;
                 default:
                     phase = Phase.GoingToCustomer;
@@ -260,10 +307,17 @@ namespace Mancoffee.Staff
                 return;
             }
 
+            if (current.IsMaintenance)
+            {
+                RunMaintenance();
+                return;
+            }
+
             Customer customer = current.Customer;
             if (current.Cancelled || customer == null || customer.State == CustomerState.Saliendo)
             {
                 current.Cancelled = true;
+                current.ReturnUnusedVessel();
                 Abort();
                 return;
             }
@@ -327,16 +381,30 @@ namespace Mancoffee.Staff
                     }
                     if (mover.ConsumeArrived())
                     {
-                        phase = Phase.Preparing;
-                        timerTotal = timer = Mathf.Max(0.1f, current.Product.prepTime);
-                        if (!current.IngredientsPaid)
+                        arrived = true;
+                        waitTime = 0f;
+                    }
+                    if (!arrived)
+                    {
+                        RetryIfStuck(GoToStation);
+                        break;
+                    }
+                    if (!current.Supplied && !TrySupply())
+                    {
+                        // Falta un insumo o no hay en qué servir: espera un poco y después lo suelta.
+                        waitTime += Time.deltaTime;
+                        if (waitTime > 5f)
                         {
-                            CafeState.Instance.ForceSpend(current.Product.ingredientCost, MoneyCategory.Ingredientes);
-                            current.IngredientsPaid = true;
+                            current.RetryAfter = Time.time + 6f;
+                            GiveUp();
                         }
                         break;
                     }
-                    RetryIfStuck(GoToStation);
+                    blockedReason = null;
+                    phase = Phase.Preparing;
+                    float speed = station.State != null ? station.State.SpeedFactor : 1f;
+                    if (speed < 1f) CafeState.Instance.Today.SlowPreparations++;
+                    timerTotal = timer = Mathf.Max(0.1f, current.Product.prepTime / speed);
                     break;
 
                 case Phase.Preparing:
@@ -349,6 +417,7 @@ namespace Mancoffee.Staff
                     timer -= Time.deltaTime;
                     if (timer > 0f) break;
 
+                    station.State?.AddUse();
                     ReleaseStation();
                     delivering = true;
                     failCount = 0;
@@ -375,15 +444,13 @@ namespace Mancoffee.Staff
                     break;
 
                 case TaskType.PrepararYServir:
-                    customer.ReceiveOrder();
+                    customer.ReceiveOrder(task.Vessel);
+                    // Para llevar: se cobra en el momento.
+                    if (customer.IsTakeaway) Charge(customer);
                     break;
 
                 case TaskType.Cobrar:
-                    if (customer.TryPay(out int price, out int tip))
-                    {
-                        CafeState.Instance.AddIncome(price, MoneyCategory.Ventas);
-                        CafeState.Instance.AddIncome(tip, MoneyCategory.Propinas);
-                    }
+                    Charge(customer);
                     break;
             }
 
@@ -391,11 +458,283 @@ namespace Mancoffee.Staff
             if (current == task) Finish();
         }
 
+        private static void Charge(Customer customer)
+        {
+            if (!customer.TryPay(out int price, out int tip)) return;
+            CafeState.Instance.AddIncome(price, MoneyCategory.Ventas);
+            CafeState.Instance.AddIncome(tip, MoneyCategory.Propinas);
+        }
+
+        // =========================== Insumos y vajilla del pedido ===========================
+
+        /// <summary>
+        /// Gasta los insumos y elige en qué se sirve: taza o plato limpio en mesa; vaso descartable para llevar
+        /// o si no quedan tazas limpias. Devuelve false si falta algo.
+        /// </summary>
+        private bool TrySupply()
+        {
+            Inventory inv = Inventory.Instance;
+            if (inv == null)
+            {
+                current.Supplied = true;
+                return true;
+            }
+
+            ProductData product = current.Product;
+            Customer customer = current.Customer;
+            List<IngredientData> missing = inv.Missing(product);
+            if (missing.Count > 0)
+            {
+                blockedReason = $"Falta {missing[0].displayName.ToLowerInvariant()}";
+                customer.MarkOrderBlocked();
+                SupplyNote($"No hay {missing[0].displayName.ToLowerInvariant()} para el {product.displayName.ToLowerInvariant()} de {customer.TableLabel.ToLowerInvariant()}");
+                return false;
+            }
+
+            IngredientData cup = inv.Database != null ? inv.Database.disposableCup : null;
+            bool drink = product.dish == DishKind.Taza;
+            bool cupsLeft = cup == null || inv.Count(cup) > 0;
+            ServeVessel vessel;
+
+            if (customer.IsTakeaway)
+            {
+                if (drink && !cupsLeft)
+                {
+                    blockedReason = "Sin vasos descartables";
+                    SupplyNote("No quedan vasos descartables para los pedidos para llevar");
+                    return false;
+                }
+                vessel = ServeVessel.Descartable;
+            }
+            else if (inv.CleanDishes(product.dish) > 0)
+            {
+                vessel = drink ? ServeVessel.Taza : ServeVessel.Plato;
+            }
+            else if (!drink)
+            {
+                vessel = ServeVessel.Descartable; // en servilleta
+            }
+            else if (cupsLeft)
+            {
+                vessel = ServeVessel.Descartable;
+                CafeState.Instance.Today.ServedWithoutCup++;
+                SupplyNote("No quedan tazas limpias: se sirve en vaso descartable. ¡Alguien tiene que lavar!");
+            }
+            else
+            {
+                blockedReason = "Sin tazas ni vasos";
+                SupplyNote("No hay tazas limpias ni vasos descartables: hay que lavar o pedir vasos");
+                return false;
+            }
+
+            inv.ConsumeIngredients(product);
+            if (vessel == ServeVessel.Taza) inv.TakeClean(DishKind.Taza);
+            else if (vessel == ServeVessel.Plato) inv.TakeClean(DishKind.Plato);
+            else if (drink && cup != null) inv.Consume(cup, 1);
+
+            current.Vessel = vessel;
+            current.Supplied = true;
+            return true;
+        }
+
+        private static void SupplyNote(string text)
+        {
+            if (Time.unscaledTime < nextSupplyNote) return;
+            nextSupplyNote = Time.unscaledTime + 8f;
+            CafeState.Instance?.Notify(text, NoteKind.Malo);
+        }
+
+        // =========================== Mantenimiento ===========================
+
+        private void RunMaintenance()
+        {
+            bool atTarget = phase == Phase.GoingToTarget || phase == Phase.WorkingAtTarget;
+            if (current.Cancelled || (atTarget && (!current.TargetAlive || !current.Target.IsPlaced)))
+            {
+                Abort();
+                return;
+            }
+
+            PlacedFurniture target = current.TargetAlive ? current.Target : null;
+            FurnitureState state = target != null ? target.State : null;
+
+            switch (phase)
+            {
+                case Phase.GoingToTarget:
+                    if (mover.ConsumeArrived()) arrived = true;
+                    if (!arrived)
+                    {
+                        RetryIfStuck(GoToTarget);
+                        break;
+                    }
+                    StartWorkAtTarget(target, state);
+                    break;
+
+                case Phase.WorkingAtTarget:
+                    timer -= Time.deltaTime;
+                    if (timer > 0f) break;
+                    FinishWorkAtTarget(target, state);
+                    break;
+
+                case Phase.GoingToSink:
+                    if (sink == null || !sink.IsPlaced)
+                    {
+                        sink = FindSink();
+                        if (sink == null) { NoSink(); break; }
+                        GoToSink();
+                    }
+                    if (mover.ConsumeArrived())
+                    {
+                        phase = Phase.DroppingAtSink;
+                        timerTotal = timer = dropTime;
+                        break;
+                    }
+                    RetryIfStuck(GoToSink);
+                    break;
+
+                case Phase.DroppingAtSink:
+                    timer -= Time.deltaTime;
+                    if (timer > 0f) break;
+                    FurnitureState sinkState = sink != null ? sink.State : null;
+                    if (sinkState == null) { NoSink(); break; }
+                    int cups = carriedCups, plates = carriedPlates;
+                    carriedCups = carriedPlates = 0;
+                    carriedFrom = null;
+                    sinkState.AddDirty(DishKind.Taza, cups);
+                    sinkState.AddDirty(DishKind.Plato, plates);
+                    Finish();
+                    break;
+            }
+        }
+
+        private void StartWorkAtTarget(PlacedFurniture target, FurnitureState state)
+        {
+            switch (current.Type)
+            {
+                case TaskType.LevantarVajilla:
+                    if (state == null || state.DirtyCount == 0) { Finish(); return; }
+                    timerTotal = timer = pickupTime;
+                    break;
+
+                case TaskType.Lavar:
+                    if (state == null || state.DirtyCount == 0) { Finish(); return; }
+                    (washingCups, washingPlates) = state.TakeAllDirty();
+                    timerTotal = timer = (washingCups + washingPlates) * washSecondsPerDish;
+                    break;
+
+                case TaskType.Purgar:
+                    if (state == null || !state.NeedsMaintenance) { Finish(); return; }
+                    if (target.ReservedBy != null && !ReferenceEquals(target.ReservedBy, this))
+                    {
+                        // Alguien la está usando: espera a que termine.
+                        blockedReason = "Espera que liberen la máquina";
+                        waitTime += Time.deltaTime;
+                        if (waitTime > 15f)
+                        {
+                            current.RetryAfter = Time.time + 5f;
+                            GiveUp();
+                        }
+                        return;
+                    }
+                    blockedReason = null;
+                    target.ReservedBy = this;
+                    station = target;
+                    timerTotal = timer = purgeTime;
+                    break;
+            }
+            phase = Phase.WorkingAtTarget;
+        }
+
+        private void FinishWorkAtTarget(PlacedFurniture target, FurnitureState state)
+        {
+            switch (current.Type)
+            {
+                case TaskType.LevantarVajilla:
+                    (carriedCups, carriedPlates) = state.TakeAllDirty();
+                    carriedFrom = target;
+                    if (carriedCups + carriedPlates == 0) { Finish(); return; }
+                    sink = FindSink();
+                    if (sink == null) { NoSink(); return; }
+                    phase = Phase.GoingToSink;
+                    failCount = 0;
+                    GoToSink();
+                    break;
+
+                case TaskType.Lavar:
+                    Inventory.Instance?.ReturnClean(DishKind.Taza, washingCups);
+                    Inventory.Instance?.ReturnClean(DishKind.Plato, washingPlates);
+                    washingCups = washingPlates = 0;
+                    Finish();
+                    break;
+
+                case TaskType.Purgar:
+                    state.Purge();
+                    Finish();
+                    break;
+            }
+        }
+
+        private void NoSink()
+        {
+            SupplyNote("No hay bacha: construí una para poder lavar la vajilla");
+            current.RetryAfter = Time.time + 10f;
+            GiveUp();
+        }
+
+        /// <summary>Si suelta la tarea con vajilla en la mano o a medio lavar, la vajilla vuelve a donde estaba.</summary>
+        private void DropDishes()
+        {
+            if (carriedCups + carriedPlates > 0)
+            {
+                FurnitureState from = carriedFrom != null && carriedFrom.IsPlaced ? carriedFrom.State : null;
+                if (from != null)
+                {
+                    from.AddDirty(DishKind.Taza, carriedCups);
+                    from.AddDirty(DishKind.Plato, carriedPlates);
+                }
+                else
+                {
+                    Inventory.Instance?.ReturnClean(DishKind.Taza, carriedCups);
+                    Inventory.Instance?.ReturnClean(DishKind.Plato, carriedPlates);
+                }
+                carriedCups = carriedPlates = 0;
+                carriedFrom = null;
+            }
+
+            if (washingCups + washingPlates > 0)
+            {
+                FurnitureState sinkState = current != null && current.TargetAlive ? current.Target.State : null;
+                if (sinkState != null)
+                {
+                    sinkState.AddDirty(DishKind.Taza, washingCups);
+                    sinkState.AddDirty(DishKind.Plato, washingPlates);
+                }
+                else
+                {
+                    Inventory.Instance?.ReturnClean(DishKind.Taza, washingCups);
+                    Inventory.Instance?.ReturnClean(DishKind.Plato, washingPlates);
+                }
+                washingCups = washingPlates = 0;
+            }
+        }
+
         // =========================== Movimiento ===========================
 
         private bool GoToCustomer() => mover.MoveToAny(grid.GetAccessCells(new[] { current.Customer.SeatCell }));
 
-        private bool GoToStation() => mover.MoveToAny(grid.GetAccessCells(station.OccupiedCells));
+        private bool GoToStation()
+        {
+            arrived = false;
+            return mover.MoveToAny(grid.GetAccessCells(station.OccupiedCells));
+        }
+
+        private bool GoToTarget()
+        {
+            arrived = false;
+            return current.TargetAlive && mover.MoveToAny(grid.GetAccessCells(current.Target.OccupiedCells));
+        }
+
+        private bool GoToSink() => sink != null && mover.MoveToAny(grid.GetAccessCells(sink.OccupiedCells));
 
         /// <summary>Si quedó sin camino, reintenta cada segundo; tras varios fallos suelta la tarea.</summary>
         private void RetryIfStuck(Func<bool> retry)
@@ -418,14 +757,18 @@ namespace Mancoffee.Staff
         private PlacedFurniture FindStation(ProductData product)
         {
             if (product == null || product.station == null) return null;
+            return FindNearest(f => f.Data == product.station && (f.ReservedBy == null || ReferenceEquals(f.ReservedBy, this)));
+        }
 
+        private PlacedFurniture FindSink() => FindNearest(f => f.Data.isSink);
+
+        private PlacedFurniture FindNearest(Predicate<PlacedFurniture> match)
+        {
             PlacedFurniture best = null;
             int bestLength = int.MaxValue;
             foreach (PlacedFurniture f in grid.AllFurniture)
             {
-                if (f.Data != product.station) continue;
-                if (f.ReservedBy != null && !ReferenceEquals(f.ReservedBy, this)) continue;
-
+                if (!f.IsPlaced || !match(f)) continue;
                 List<Vector2Int> access = grid.GetAccessCells(f.OccupiedCells);
                 if (access.Count == 0) continue;
                 List<Vector2Int> path = GridPathfinder.FindPathToAny(grid, mover.PathStart, access);
@@ -453,17 +796,22 @@ namespace Mancoffee.Staff
             current = null;
             phase = Phase.None;
             delivering = false;
+            blockedReason = null;
+            sink = null;
         }
 
         /// <summary>Corta la tarea actual sin devolverla (por ejemplo, porque el cliente se fue).</summary>
         private void Abort()
         {
             if (phase == Phase.AtCustomer && current?.Customer != null) current.Customer.SetAttended(false);
+            DropDishes();
             ReleaseStation();
             mover.Stop();
             current = null;
             phase = Phase.None;
             delivering = false;
+            blockedReason = null;
+            sink = null;
         }
 
         /// <summary>Suelta la tarea actual y la devuelve a la bolsa para que la haga otro.</summary>
@@ -478,17 +826,19 @@ namespace Mancoffee.Staff
 
         private void RefreshVisuals()
         {
-            bool working = phase == Phase.Preparing || phase == Phase.AtCustomer;
-            progressBar.gameObject.SetActive(working);
-            if (working)
+            progressBar.gameObject.SetActive(IsWorking);
+            if (IsWorking)
             {
                 float ratio = timerTotal > 0f ? 1f - Mathf.Clamp01(timer / timerTotal) : 1f;
                 progressFill.transform.localScale = new Vector3(Mathf.Max(1f, Mathf.Round(progressBarWidthPx * ratio)), 2f, 1f);
             }
 
-            bool carrying = delivering && current != null && current.Product != null;
-            carriedIcon.enabled = carrying;
-            if (carrying) carriedIcon.sprite = current.Product.icon;
+            Sprite carried = null;
+            if (delivering && current != null && current.Product != null) carried = current.Product.icon;
+            else if (carriedCups + carriedPlates > 0 && grid != null && grid.Database != null)
+                carried = carriedCups > 0 ? grid.Database.dirtyCupIcon : grid.Database.dirtyPlateIcon;
+            carriedIcon.enabled = carried != null;
+            if (carried != null) carriedIcon.sprite = carried;
         }
     }
 }

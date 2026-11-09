@@ -157,6 +157,21 @@ namespace Mancoffee.EditorTools
         public static void AddInterface(Camera cam, GridManager grid, StaffManager staff, CustomerSpawner spawner, BuildModeController build)
         {
             GameObject systems = grid.gameObject;
+
+            // Despensa y vajilla (fase 1)
+            var inventory = systems.GetComponent<Mancoffee.Core.Inventory>();
+            if (inventory == null) inventory = systems.AddComponent<Mancoffee.Core.Inventory>();
+            var iso = new SerializedObject(inventory);
+            iso.FindProperty("database").objectReferenceValue = grid.Database;
+            iso.ApplyModifiedPropertiesWithoutUndo();
+
+            if (spawner != null)
+            {
+                var sso = new SerializedObject(spawner);
+                sso.FindProperty("maxCustomers").intValue = 14;
+                sso.FindProperty("spawnInterval").vector2Value = new Vector2(7f, 14f);
+                sso.ApplyModifiedPropertiesWithoutUndo();
+            }
             var selection = systems.GetComponent<SelectionController>();
             if (selection == null) selection = systems.AddComponent<SelectionController>();
             var so = new SerializedObject(selection);

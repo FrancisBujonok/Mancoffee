@@ -16,6 +16,12 @@ MonoBehaviour:
   displayName: Cappuccino
   station: {fileID: 11400000, guid: 2b79be9e0c406c643805f519af4a2ccc, type: 2}
   price: 9
-  ingredientCost: 3
+  ingredientCost: 2
   prepTime: 6
   icon: {fileID: 21300000, guid: 05d39ef5aec8e3f42865ca56e93c95f1, type: 3}
+  dish: 0
+  ingredients:
+  - ingredient: {fileID: 11400000, guid: 0b0d08d81aac6b94cb719cc500495798, type: 2}
+    amount: 1
+  - ingredient: {fileID: 11400000, guid: e57d9343d2b1a804d87db313ecf722bf, type: 2}
+    amount: 1

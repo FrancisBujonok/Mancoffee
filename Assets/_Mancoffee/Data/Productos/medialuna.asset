@@ -19,3 +19,7 @@ MonoBehaviour:
   ingredientCost: 1
   prepTime: 2
   icon: {fileID: 21300000, guid: 85ef9021f85b57944ba80452192d681c, type: 3}
+  dish: 1
+  ingredients:
+  - ingredient: {fileID: 11400000, guid: ccd104198d0805445b12b20050cc30c1, type: 2}
+    amount: 1

@@ -145,7 +145,7 @@ namespace Mancoffee.Staff
 
         // =========================== Opciones del menú circular ===========================
 
-        private List<PieOption> BuildOptions(Vector2 world, out string title)
+private List<PieOption> BuildOptions(Vector2 world, out string title)
         {
             var options = new List<PieOption>();
             Vector2Int cell = grid.WorldToCell(world);
@@ -162,21 +162,52 @@ namespace Mancoffee.Staff
                 return options;
             }
 
-            if (Selected == null) return options;
-
             PlacedFurniture furniture = grid.GetFurnitureAt(cell);
-            if (furniture != null && (furniture.Data.category == FurnitureCategory.Equipo || furniture.Data.category == FurnitureCategory.Mostrador))
+            FurnitureState state = furniture != null ? furniture.State : null;
+
+            // Sin nadie seleccionado: un mueble con una tarea de mantenimiento ofrece a quién dársela.
+            if (Selected == null)
             {
-                title = $"{Selected.DisplayName} · {furniture.Data.displayName}";
-                foreach (StaffTask t in TaskManager.Instance.AllCustomerTasks())
-                {
-                    if (t.Type != TaskType.PrepararYServir || t.Product == null || t.Product.station != furniture.Data) continue;
-                    options.Add(OptionForTask(t, Selected));
-                    if (options.Count >= 6) break;
-                }
-                if (options.Count == 0)
-                    options.Add(new PieOption { Label = "Nada para preparar acá", Enabled = false });
+                if (state == null) return options;
+                StaffTask task = MaintenanceTaskOn(furniture, state, false);
+                if (task == null) return options;
+                title = $"{furniture.Label} · {task.Title}";
+                options.AddRange(AssignOptions(task));
                 return options;
+            }
+
+            if (furniture != null && state != null)
+            {
+                title = $"{Selected.DisplayName} · {furniture.Label}";
+                Employee e = Selected;
+
+                if (state.IsTable && state.DirtyCount > 0)
+                    options.Add(MaintenanceOption(TaskType.LevantarVajilla, furniture, $"Levantar vajilla ({state.DirtyCount})", true, e));
+
+                if (state.IsSink)
+                    options.Add(state.DirtyCount > 0
+                        ? MaintenanceOption(TaskType.Lavar, furniture, $"Lavar vajilla ({state.DirtyCount})", true, e)
+                        : new PieOption { Label = "La bacha está vacía", Enabled = false });
+
+                if (state.NeedsMaintenance)
+                {
+                    string label = state.NeedsPurge ? "Purgar el filtro (larga vapor)" : $"Purgar el filtro ({state.Uses}/{state.MaintenanceEvery})";
+                    options.Add(MaintenanceOption(TaskType.Purgar, furniture, label, state.Uses >= 3, e));
+                }
+
+                if (furniture.Data.category == FurnitureCategory.Equipo || furniture.Data.category == FurnitureCategory.Mostrador)
+                {
+                    foreach (StaffTask t in TaskManager.Instance.AllCustomerTasks())
+                    {
+                        if (t.Type != TaskType.PrepararYServir || t.Product == null || t.Product.station != furniture.Data) continue;
+                        options.Add(OptionForTask(t, Selected));
+                        if (options.Count >= 6) break;
+                    }
+                }
+
+                if (options.Count == 0 && !furniture.Data.isSink && furniture.Data.category != FurnitureCategory.Asiento)
+                    options.Add(new PieOption { Label = "Nada para hacer acá", Enabled = false });
+                if (options.Count > 0) return options;
             }
 
             if (grid.IsWalkable(cell))
@@ -190,6 +221,36 @@ namespace Mancoffee.Staff
                 });
             }
             return options;
+        }
+
+        /// <summary>La tarea de mantenimiento que corresponde a este mueble (si hay algo para hacer).</summary>
+        private static StaffTask MaintenanceTaskOn(PlacedFurniture furniture, FurnitureState state, bool create)
+        {
+            TaskManager tm = TaskManager.Instance;
+            TaskType? type = null;
+            if (state.IsTable && state.DirtyCount > 0) type = TaskType.LevantarVajilla;
+            else if (state.IsSink && state.DirtyCount > 0) type = TaskType.Lavar;
+            else if (state.NeedsPurge) type = TaskType.Purgar;
+            if (type == null) return null;
+            return create ? tm.RequestFurniture(type.Value, furniture) : tm.FindFurnitureTask(type.Value, furniture) ?? tm.RequestFurniture(type.Value, furniture);
+        }
+
+        private PieOption MaintenanceOption(TaskType type, PlacedFurniture furniture, string label, bool enabled, Employee employee)
+        {
+            StaffTask existing = TaskManager.Instance.FindFurnitureTask(type, furniture);
+            bool mine = existing != null && existing.Assignee == employee;
+            if (mine) label += " (ya en su cola)";
+            return new PieOption
+            {
+                Label = label,
+                Icon = IconForType(type),
+                Enabled = enabled && !mine && employee.HasRoom,
+                OnPick = () =>
+                {
+                    StaffTask task = TaskManager.Instance.RequestFurniture(type, furniture);
+                    TaskManager.Instance.AssignAny(task, employee);
+                }
+            };
         }
 
         /// <summary>La opción de darle una tarea concreta a un empleado.</summary>
@@ -233,22 +294,38 @@ namespace Mancoffee.Staff
             return list;
         }
 
-        public static string TaskLabel(StaffTask task) => task.Type switch
+public static string TaskLabel(StaffTask task) => task.Type switch
         {
             TaskType.TomarPedido => "Tomar pedido",
             TaskType.PrepararYServir => task.Product != null ? $"Preparar y llevar {task.Product.displayName.ToLowerInvariant()}" : "Preparar pedido",
             TaskType.Cobrar => "Cobrar",
+            TaskType.LevantarVajilla => "Levantar vajilla",
+            TaskType.Lavar => "Lavar vajilla",
+            TaskType.Purgar => "Purgar el filtro",
             _ => "Ir aquí"
         };
 
         /// <summary>Ícono pixel de una tarea: el producto, o el globo del cliente.</summary>
-        public Sprite IconFor(StaffTask task)
+public Sprite IconFor(StaffTask task)
         {
             return task.Type switch
             {
                 TaskType.PrepararYServir => task.Product != null ? task.Product.icon : null,
                 TaskType.TomarPedido => orderIcon,
                 TaskType.Cobrar => billIcon,
+                _ => IconForType(task.Type)
+            };
+        }
+
+        private Sprite IconForType(TaskType type)
+        {
+            GameDatabase db = grid != null ? grid.Database : null;
+            if (db == null) return null;
+            return type switch
+            {
+                TaskType.LevantarVajilla => db.dirtyCupIcon,
+                TaskType.Lavar => db.dirtyCupIcon,
+                TaskType.Purgar => db.steamIcon,
                 _ => null
             };
         }

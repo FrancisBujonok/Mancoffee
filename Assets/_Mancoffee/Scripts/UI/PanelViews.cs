@@ -295,7 +295,7 @@ namespace Mancoffee.UI
         public void Refresh()
         {
             hireLabel.text = $"Contratar · ${ctx.Staff.HireCost}";
-            List<StaffTask> pool = ctx.Tasks.Pending.Where(t => t.Assignee == null && t.Customer != null).OrderBy(t => t.Patience).ToList();
+            List<StaffTask> pool = ctx.Tasks.Pending.Where(t => t.Assignee == null && (t.Customer != null || (t.IsMaintenance && t.TargetAlive))).OrderBy(t => t.Patience).ToList();
             IReadOnlyList<Employee> staff = ctx.Staff.Employees;
             string newKey = string.Join(",", pool.Select(HudContext.Key)) + "|" +
                             string.Join(";", staff.Select(e => HudContext.Key(e) + ":" + string.Join(",", e.AllTasks.Select(HudContext.Key)))) +
@@ -413,7 +413,7 @@ namespace Mancoffee.UI
                 x.RegisterCallback<PointerDownEvent>(ev => ev.StopPropagation());
                 UI.Icon(x, IconKind.Close);
             }
-            if (task.Customer != null) view.Wrap.AddManipulator(new TicketDrag(this, task));
+            if (task.Type != TaskType.IrA) view.Wrap.AddManipulator(new TicketDrag(this, task));
             tickets.Add(view);
         }
 
@@ -580,6 +580,9 @@ namespace Mancoffee.UI
             UI.Text(center, "MANCOFFEE", "rep-title");
             UI.Text(center, $"CIERRE DEL DÍA {day}", "r-muted");
             UI.Text(center, $"{r.Served} atendidos · {r.Angry} enojados", "r-muted");
+            if (r.ServedByType.Count > 0)
+                UI.Text(center, string.Join(" · ", r.ServedByType.OrderByDescending(kv => kv.Value)
+                    .Select(kv => $"{kv.Value} {(Mancoffee.Customers.CustomerProfile.Find(kv.Key)?.Name ?? kv.Key).ToLowerInvariant()}{(kv.Value == 1 ? "" : "s")}")), "r-muted");
             Sep(paper);
 
             foreach (KeyValuePair<ProductData, int> kv in r.Sold.OrderByDescending(k => k.Value))
@@ -594,6 +597,8 @@ namespace Mancoffee.UI
             Money(paper, "Sueldos", r.Get(MoneyCategory.Sueldos), true);
             Money(paper, "Contrataciones", r.Get(MoneyCategory.Contrataciones), true);
             Money(paper, "Reembolsos", r.Get(MoneyCategory.Reembolsos), true);
+            foreach (KeyValuePair<IngredientData, int> kv in r.Wasted)
+                Line(paper, $"Vencido: {kv.Value} {kv.Key.displayName.ToLowerInvariant()}", "", "r-bad");
             Sep(paper);
 
             VisualElement total = UI.El(paper, "row-between", "rep-total");
@@ -724,32 +729,62 @@ namespace Mancoffee.UI
             list = UI.El(board, "carta-list");
         }
 
-        public void Refresh()
+public void Refresh()
         {
+            Inventory inv = Inventory.Instance;
             List<ProductData> products = ctx.Grid.Database.products;
-            string newKey = string.Join(",", products.Select(p => MenuService.IsAvailable(ctx.Grid, p) ? "1" : "0"));
+            string newKey = string.Join(",", products.Select(p => (MenuService.IsAvailable(ctx.Grid, p) ? "1" : "0") + (inv != null ? inv.PriceOf(p) : p.price)));
             if (newKey == key) return;
             key = newKey;
             list.Clear();
 
-            foreach (ProductData p in products)
+            foreach (ProductData product in products)
             {
-                bool on = MenuService.IsAvailable(ctx.Grid, p);
+                ProductData p = product;
+                bool hasStation = MenuService.HasStation(ctx.Grid, p);
+                List<IngredientData> missing = inv != null ? inv.Missing(p) : new List<IngredientData>();
+                bool on = hasStation && missing.Count == 0;
+                int price = inv != null ? inv.PriceOf(p) : p.price;
+
                 VisualElement item = UI.El(list, "carta-item");
                 if (!on) item.AddToClassList("carta-item--off");
                 VisualElement row = UI.El(item, "carta-row");
                 VisualElement icon = UI.El(row, "carta-icon");
-                if (p.icon != null) UI.Pixel(icon, p.icon, 3f);
+                if (p.icon != null) UI.Pixel(icon, p.icon, 4f);
                 UI.Text(row, p.displayName, "carta-name", "f-display");
                 UI.El(row, "carta-leader");
-                UI.Text(row, $"${p.price}", "carta-price", "f-display");
-                int margin = p.price - p.ingredientCost;
-                string station = p.station != null ? p.station.displayName : "—";
-                string info = on
-                    ? $"Ingredientes ${p.ingredientCost} · deja ${margin} · se hace en: {station}"
-                    : $"No disponible: necesitás {station}";
+
+                if (inv != null)
+                {
+                    VisualElement minus = UI.Button(row, null, () => inv.SetPrice(p, inv.PriceOf(p) - 1), "price-btn");
+                    UI.Text(minus, "−", "btn-label", "f-display");
+                }
+                UI.Text(row, $"${price}", "carta-price", "f-display");
+                if (inv != null)
+                {
+                    VisualElement plus = UI.Button(row, null, () => inv.SetPrice(p, inv.PriceOf(p) + 1), "price-btn");
+                    UI.Text(plus, "+", "btn-label", "f-display");
+                }
+
+                string cost = p.UnitCost.ToString("0.0", new System.Globalization.CultureInfo("es-AR"));
+                string margin = (price - p.UnitCost).ToString("0.0", new System.Globalization.CultureInfo("es-AR"));
+                string info;
+                if (!hasStation) info = $"No disponible: necesitás {(p.station != null ? p.station.displayName.ToLowerInvariant() : "una estación")}";
+                else if (missing.Count > 0) info = $"Sin stock: {string.Join(", ", missing.Select(m => m.displayName.ToLowerInvariant()))}. Pedí en la despensa (I)";
+                else info = $"Insumos ${cost} · deja ${margin} · {Demand(p, inv)}";
+                if (price != p.price) info += $" · precio de lista ${p.price}";
                 UI.Text(item, info, "carta-info");
             }
+        }
+
+        /// <summary>Quiénes lo compran a este precio.</summary>
+        private static string Demand(ProductData p, Inventory inv)
+        {
+            float ratio = inv != null ? inv.PriceRatio(p) : 1f;
+            var buyers = Mancoffee.Customers.CustomerProfile.All.Where(c => c.Acceptance(ratio) >= 0.5f).Select(c => c.Name.ToLowerInvariant() + "s").ToList();
+            if (buyers.Count == 0) return "a este precio no lo compra nadie";
+            if (buyers.Count == Mancoffee.Customers.CustomerProfile.All.Length) return "lo compran todos";
+            return "lo compran " + string.Join(" y ", buyers);
         }
     }
 

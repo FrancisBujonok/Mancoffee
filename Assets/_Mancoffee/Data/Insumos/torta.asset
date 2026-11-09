@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 92b2b08747247df4d8e2003bb26f09cd, type: 3}
+  m_Name: torta
+  m_EditorClassIdentifier: Assembly-CSharp::Mancoffee.Data.IngredientData
+  id: torta
+  displayName: Torta
+  unitName: porciones
+  packName: Torta entera (8 porciones)
+  packSize: 8
+  packPrice: 24
+  shelfDays: 2
+  startPacks: 1
+  icon: {fileID: 21300000, guid: e47d04addd65bba48b6cb241a8097ed6, type: 3}

@@ -50,6 +50,7 @@ namespace Mancoffee.Core
         private void NewGame()
         {
             CafeState.Instance.ResetNewGame();
+            Inventory.Instance?.ResetNewGame();
             grid.BuildPerimeterWalls();
             for (int i = 0; i < startingStaff; i++) staff.Hire(false);
             dayCycle.ResetDay();

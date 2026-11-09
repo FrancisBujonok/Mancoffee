@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 92b2b08747247df4d8e2003bb26f09cd, type: 3}
+  m_Name: leche
+  m_EditorClassIdentifier: Assembly-CSharp::Mancoffee.Data.IngredientData
+  id: leche
+  displayName: Leche
+  unitName: porciones
+  packName: Sachet de 10 porciones
+  packSize: 10
+  packPrice: 12
+  shelfDays: 3
+  startPacks: 2
+  icon: {fileID: 21300000, guid: 063c078c6bd3caf45b68ee7d85a344b0, type: 3}

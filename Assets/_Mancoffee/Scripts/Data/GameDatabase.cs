@@ -16,6 +16,19 @@ namespace Mancoffee.Data
         [Tooltip("El primero es el suelo por defecto.")]
         public List<FloorTypeData> floorTypes = new();
 
+        public List<IngredientData> ingredients = new();
+
+        [Tooltip("Insumo que se usa para servir bebidas para llevar o cuando no hay tazas limpias.")]
+        public IngredientData disposableCup;
+
+        [Header("Íconos del servicio")]
+        public Sprite dirtyCupIcon;
+        public Sprite dirtyPlateIcon;
+        public Sprite steamIcon;
+        public Sprite takeawayIcon;
+
+        public IngredientData FindIngredient(string id) => ingredients.Find(i => i != null && i.id == id);
+
         public FloorTypeData DefaultFloor => floorTypes.Count > 0 ? floorTypes[0] : null;
 
         public FurnitureData FindFurniture(string id) => furniture.Find(f => f != null && f.id == id);

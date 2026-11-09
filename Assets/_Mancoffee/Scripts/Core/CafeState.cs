@@ -22,7 +22,11 @@ namespace Mancoffee.Core
         SinMozo,
         SinPedido,
         SinCuenta,
-        SinSilla
+        SinSilla,
+        /// <summary>Le pareció todo caro y no pidió nada.</summary>
+        Caro,
+        /// <summary>No había insumos para lo que quería.</summary>
+        SinStock
     }
 
     public enum NoteKind
@@ -56,6 +60,18 @@ namespace Mancoffee.Core
 
         /// <summary>Qué producto esperaban los que se fueron sin recibir su pedido.</summary>
         public readonly Dictionary<ProductData, int> AngryProducts = new();
+
+        /// <summary>Insumos que se vencieron al cerrar.</summary>
+        public readonly Dictionary<IngredientData, int> Wasted = new();
+
+        /// <summary>Clientes atendidos por tipo (estudiante, oficinista...).</summary>
+        public readonly Dictionary<string, int> ServedByType = new();
+
+        /// <summary>Bebidas servidas en mesa con vaso descartable porque no había tazas limpias.</summary>
+        public int ServedWithoutCup;
+
+        /// <summary>Veces que la cafetera trabajó a mitad de velocidad por falta de purga.</summary>
+        public int SlowPreparations;
 
         public void Add(MoneyCategory category, int amount)
         {
@@ -170,11 +186,13 @@ namespace Mancoffee.Core
             Today.Add(category, amount);
         }
 
-        public void RegisterHappyCustomer(ProductData product)
+        /// <param name="satisfaction">1 = normal; baja si le cobraste caro o le serviste en vaso descartable.</param>
+        public void RegisterHappyCustomer(ProductData product, float satisfaction = 1f, string profileId = null)
         {
             Today.Served++;
             if (product != null) DailyLedger.Increment(Today.Sold, product);
-            Reputation = Mathf.Min(5f, Reputation + 0.04f);
+            if (!string.IsNullOrEmpty(profileId)) DailyLedger.Increment(Today.ServedByType, profileId);
+            Reputation = Mathf.Min(5f, Reputation + 0.04f * Mathf.Clamp(satisfaction, 0.25f, 1.3f));
         }
 
         public void RegisterAngryCustomer(AngryReason reason, ProductData waitingFor)
@@ -182,7 +200,7 @@ namespace Mancoffee.Core
             Today.Angry++;
             DailyLedger.Increment(Today.AngryReasons, reason);
             if (reason == AngryReason.SinPedido && waitingFor != null) DailyLedger.Increment(Today.AngryProducts, waitingFor);
-            Reputation = Mathf.Max(1f, Reputation - 0.1f);
+            Reputation = Mathf.Max(1f, Reputation - (reason == AngryReason.Caro ? 0.05f : 0.1f));
         }
 
         public void StartNewDay()

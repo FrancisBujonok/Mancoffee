@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
+using Mancoffee.Building;
+using Mancoffee.Core;
 using Mancoffee.Customers;
 using Mancoffee.Data;
 using Mancoffee.GridSystem;
@@ -13,7 +15,23 @@ namespace Mancoffee.Staff
         PrepararYServir,
         Cobrar,
         /// <summary>Orden directa del jugador: caminar hasta una celda (como "Ir aquí" en Los Sims).</summary>
-        IrA
+        IrA,
+        /// <summary>Levantar la vajilla sucia de una mesa y llevarla a la bacha.</summary>
+        LevantarVajilla,
+        /// <summary>Lavar lo que hay en la bacha: vuelven tazas y platos limpios.</summary>
+        Lavar,
+        /// <summary>Purgar y limpiar el filtro de una máquina que larga vapor.</summary>
+        Purgar
+    }
+
+    /// <summary>En qué se sirvió (o se va a servir) un pedido.</summary>
+    public enum ServeVessel
+    {
+        Ninguno,
+        Taza,
+        Plato,
+        /// <summary>Vaso descartable (bebidas) o servilleta/bolsa (pastelería).</summary>
+        Descartable
     }
 
     /// <summary>
@@ -36,29 +54,52 @@ namespace Mancoffee.Staff
         /// <summary>Destino de las tareas IrA.</summary>
         public Vector2Int Cell { get; set; }
 
+        /// <summary>Mueble de las tareas de mantenimiento (la mesa sucia, la bacha, la cafetera).</summary>
+        public PlacedFurniture Target { get; set; }
+
         public Employee Assignee { get; internal set; }
         public bool Cancelled { get; internal set; }
-        public bool IngredientsPaid { get; internal set; }
+
+        /// <summary>Ya se gastaron los insumos y se eligió la vajilla.</summary>
+        public bool Supplied { get; internal set; }
+
+        public ServeVessel Vessel { get; internal set; }
 
         /// <summary>Los empleados automáticos no la toman antes de este momento (por ejemplo, si no había estación libre).</summary>
         public float RetryAfter { get; internal set; }
 
-        /// <summary>Menor = más urgente. Cobrar libera mesas; preparar evita que el pedido se enfríe.</summary>
+        public bool IsMaintenance => Type == TaskType.LevantarVajilla || Type == TaskType.Lavar || Type == TaskType.Purgar;
+
+        /// <summary>Si el mueble de la tarea sigue existiendo (Unity anula los objetos destruidos).</summary>
+        public bool TargetAlive => Target != null;
+
+        /// <summary>Menor = más urgente.</summary>
         public int Priority => Type switch
         {
             TaskType.Cobrar => 0,
             TaskType.PrepararYServir => 1,
-            _ => 2
+            TaskType.Lavar => Inventory.Instance != null && Inventory.Instance.CleanDishes(DishKind.Taza) <= 2 ? 1 : 4,
+            TaskType.TomarPedido => 2,
+            TaskType.LevantarVajilla => 3,
+            TaskType.Purgar => 4,
+            _ => 5
         };
 
-        /// <summary>"Mesa 3", o "Sin mesa".</summary>
-        public string Where => Customer != null ? Customer.TableLabel : "";
+        /// <summary>Celda de referencia para medir distancias.</summary>
+        public Vector2Int TargetCell =>
+            Customer != null ? Customer.SeatCell : TargetAlive ? Target.Origin : Cell;
+
+        /// <summary>"Mesa 3", "Para llevar", "Bacha"...</summary>
+        public string Where => Customer != null ? Customer.TableLabel : TargetAlive ? Target.Label : "";
 
         public string Title => Type switch
         {
             TaskType.TomarPedido => "Tomar pedido",
             TaskType.PrepararYServir => Product != null ? $"Preparar {Product.displayName.ToLowerInvariant()}" : "Preparar pedido",
             TaskType.Cobrar => "Cobrar la cuenta",
+            TaskType.LevantarVajilla => "Levantar vajilla",
+            TaskType.Lavar => TargetAlive ? $"Lavar vajilla ({Target.State.DirtyCount})" : "Lavar vajilla",
+            TaskType.Purgar => "Purgar el filtro",
             _ => "Ir a un lugar"
         };
 
@@ -66,6 +107,15 @@ namespace Mancoffee.Staff
 
         /// <summary>Paciencia del cliente (1 = tranquilo). Las tareas sin cliente no apuran.</summary>
         public float Patience => Customer != null ? Customer.PatienceRatio : 1f;
+
+        /// <summary>Si se anula un pedido que ya tenía taza o plato limpio, la pieza vuelve sin usar.</summary>
+        internal void ReturnUnusedVessel()
+        {
+            if (!Supplied || Inventory.Instance == null) return;
+            if (Vessel == ServeVessel.Taza) Inventory.Instance.ReturnClean(DishKind.Taza, 1);
+            else if (Vessel == ServeVessel.Plato) Inventory.Instance.ReturnClean(DishKind.Plato, 1);
+            Vessel = ServeVessel.Ninguno;
+        }
     }
 
     /// <summary>
@@ -90,6 +140,30 @@ namespace Mancoffee.Staff
             return task;
         }
 
+        /// <summary>Pide una tarea sobre un mueble, salvo que ya exista una igual (pendiente o en manos de alguien).</summary>
+        public StaffTask RequestFurniture(TaskType type, PlacedFurniture target)
+        {
+            if (target == null) return null;
+            StaffTask existing = FindFurnitureTask(type, target);
+            if (existing != null) return existing;
+            var task = new StaffTask(type, null, null) { Target = target };
+            pending.Add(task);
+            return task;
+        }
+
+        public StaffTask FindFurnitureTask(TaskType type, PlacedFurniture target)
+        {
+            foreach (StaffTask t in pending)
+                if (t.Type == type && t.Target == target && !t.Cancelled) return t;
+
+            StaffManager staff = StaffManager.Instance;
+            if (staff == null) return null;
+            foreach (Employee e in staff.Employees)
+                foreach (StaffTask t in e.AllTasks)
+                    if (t.Type == type && t.Target == target && !t.Cancelled) return t;
+            return null;
+        }
+
         /// <summary>El cliente se fue: se anulan sus tareas, estén pendientes o en manos de un empleado.</summary>
         public void CancelTasksFor(Customer customer)
         {
@@ -97,6 +171,7 @@ namespace Mancoffee.Staff
             {
                 if (pending[i].Customer != customer) continue;
                 pending[i].Cancelled = true;
+                pending[i].ReturnUnusedVessel();
                 pending.RemoveAt(i);
             }
 
@@ -137,20 +212,31 @@ namespace Mancoffee.Staff
         public void ReturnToPool(StaffTask task)
         {
             task.Assignee = null;
-            if (task.Cancelled || task.Customer == null || task.Type == TaskType.IrA || pending.Contains(task)) return;
+            if (task.Cancelled || task.Type == TaskType.IrA || pending.Contains(task)) return;
+            if (task.Customer == null && !task.IsMaintenance) return;
+            if (task.IsMaintenance)
+            {
+                if (!task.TargetAlive) return;
+                // Si mientras tanto se pidió otra igual, esta sobra.
+                StaffTask other = FindFurnitureTask(task.Type, task.Target);
+                if (other != null && other != task) return;
+            }
             pending.Add(task);
         }
 
         /// <summary>Para empleados en automático: la tarea más urgente y, entre iguales, la más cercana.</summary>
         public StaffTask TakeBestFor(Employee employee)
         {
+            pending.RemoveAll(t => t.IsMaintenance && !t.TargetAlive);
+
             StaffTask best = null;
             int bestScore = int.MaxValue;
-
             foreach (StaffTask task in pending)
             {
-                if (task.RetryAfter > Time.time || task.Customer == null) continue;
-                int score = task.Priority * 10000 + GridPathfinder.Octile(employee.CurrentCell, task.Customer.SeatCell);
+                if (task.RetryAfter > Time.time) continue;
+                if (task.Customer == null && !task.IsMaintenance) continue;
+                if (task.IsMaintenance && !task.Target.IsPlaced) continue;
+                int score = task.Priority * 10000 + GridPathfinder.Octile(employee.CurrentCell, task.TargetCell);
                 if (score >= bestScore) continue;
                 best = task;
                 bestScore = score;
@@ -176,15 +262,15 @@ namespace Mancoffee.Staff
             return null;
         }
 
-        /// <summary>Todas las tareas con cliente: las de la bolsa y las que tiene cada empleado.</summary>
+        /// <summary>Todas las tareas del local salvo las órdenes de caminar: las de la bolsa y las de cada empleado.</summary>
         public List<StaffTask> AllCustomerTasks()
         {
-            var list = new List<StaffTask>(pending);
+            var list = pending.Where(t => !t.IsMaintenance || t.TargetAlive).ToList();
             StaffManager staff = StaffManager.Instance;
             if (staff != null)
                 foreach (Employee e in staff.Employees)
                     foreach (StaffTask t in e.AllTasks)
-                        if (t.Customer != null) list.Add(t);
+                        if (t.Type != TaskType.IrA) list.Add(t);
             return list;
         }
 
@@ -199,9 +285,7 @@ namespace Mancoffee.Staff
             foreach (Employee e in staff.Employees)
             {
                 if (!e.HasRoom || e == task.Assignee) continue;
-                int load = e.Load;
-                int distance = task.Customer != null ? GridPathfinder.Octile(e.CurrentCell, task.Customer.SeatCell) : 0;
-                int score = load * 10000 + distance;
+                int score = e.Load * 10000 + GridPathfinder.Octile(e.CurrentCell, task.TargetCell);
                 if (score >= bestScore) continue;
                 best = e;
                 bestScore = score;
@@ -211,25 +295,24 @@ namespace Mancoffee.Staff
 
         public void Clear() => pending.Clear();
 
-        private static void CafeStateNotify(string text) => Core.CafeState.Instance?.Notify(text, Core.NoteKind.Malo);
+        private static void CafeStateNotify(string text) => CafeState.Instance?.Notify(text, NoteKind.Malo);
     }
 
-    /// <summary>Qué se puede pedir hoy: los productos cuya estación existe en el local.</summary>
+    /// <summary>Qué se puede pedir ahora: productos con su estación en el local y con insumos en la despensa.</summary>
     public static class MenuService
     {
-        public static List<ProductData> GetAvailableProducts(GridManager grid)
-        {
-            var stations = new HashSet<FurnitureData>();
-            foreach (var f in grid.AllFurniture) stations.Add(f.Data);
-            return grid.Database.products.Where(p => p != null && p.station != null && stations.Contains(p.station)).ToList();
-        }
+        public static List<ProductData> GetAvailableProducts(GridManager grid) =>
+            grid.Database.products.Where(p => IsAvailable(grid, p)).ToList();
 
-        public static bool IsAvailable(GridManager grid, ProductData product)
+        public static bool HasStation(GridManager grid, ProductData product)
         {
             if (product == null || product.station == null) return false;
             foreach (var f in grid.AllFurniture)
                 if (f.Data == product.station) return true;
             return false;
         }
+
+        public static bool IsAvailable(GridManager grid, ProductData product) =>
+            HasStation(grid, product) && (Inventory.Instance == null || Inventory.Instance.HasIngredients(product));
     }
 }

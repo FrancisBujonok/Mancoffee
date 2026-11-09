@@ -28,6 +28,12 @@ namespace Mancoffee.Data
 
         public int price = 50;
 
+        [Tooltip("Cada cuántos usos necesita mantenimiento (0 = nunca). Sin mantenimiento trabaja a mitad de velocidad.")]
+        public int maintenanceEvery;
+
+        [Tooltip("Es una bacha: ahí se deja y se lava la vajilla sucia.")]
+        public bool isSink;
+
         [Tooltip("Un sprite por rotación (0 a 3). Si hay menos sprites que rotaciones, se reutilizan en ciclo.")]
         public Sprite[] sprites = new Sprite[0];
 

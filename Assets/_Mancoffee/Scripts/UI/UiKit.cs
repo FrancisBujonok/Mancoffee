@@ -8,7 +8,7 @@ namespace Mancoffee.UI
     public enum IconKind
     {
         Hammer, Users, Book, Chart, Gear, Pause, Play, Fast2, Fast3, Alert, Check, Close, Plus,
-        Save, Walls, Door, Window, Floor, Chair, Pin, Swap, Coin, Layers, Grip
+        Save, Walls, Door, Window, Floor, Chair, Pin, Swap, Coin, Layers, Grip, Box, Cup
     }
 
     /// <summary>Atajos para armar la interfaz por código. El aspecto vive en Mancoffee.uss.</summary>
@@ -324,6 +324,19 @@ namespace Mancoffee.UI
                 case IconKind.Layers:
                     Poly(true, 12, 3, 21, 8, 12, 13, 3, 8);
                     Poly(false, 3, 13, 12, 18, 21, 13);
+                    break;
+                case IconKind.Box:
+                    Poly(true, 3, 8, 12, 4, 21, 8, 21, 17, 12, 21, 3, 17);
+                    Poly(false, 3, 8, 12, 12, 21, 8);
+                    Poly(false, 12, 12, 12, 21);
+                    break;
+                case IconKind.Cup:
+                    Poly(true, 4, 9, 16, 9, 15, 20, 5, 20);
+                    p.BeginPath();
+                    p.Arc(P(16, 13.5f), 3 * s, Angle.Degrees(-90), Angle.Degrees(90));
+                    p.Stroke();
+                    Poly(false, 8, 3, 8, 6);
+                    Poly(false, 12, 3, 12, 6);
                     break;
                 case IconKind.Grip:
                     Circle(9, 6, 1.6f, true); Circle(15, 6, 1.6f, true);

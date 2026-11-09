@@ -16,6 +16,10 @@ MonoBehaviour:
   displayName: "Caf\xE9"
   station: {fileID: 11400000, guid: 2b79be9e0c406c643805f519af4a2ccc, type: 2}
   price: 6
-  ingredientCost: 2
+  ingredientCost: 1
   prepTime: 4
   icon: {fileID: 21300000, guid: 68e6c187d905e5d489ebc19c79c4092d, type: 3}
+  dish: 0
+  ingredients:
+  - ingredient: {fileID: 11400000, guid: 0b0d08d81aac6b94cb719cc500495798, type: 2}
+    amount: 1

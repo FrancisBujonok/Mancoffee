@@ -16,6 +16,10 @@ MonoBehaviour:
   displayName: "Porci\xF3n de torta"
   station: {fileID: 11400000, guid: e839080c57a3f7a49bac50ef1fffbbd3, type: 2}
   price: 11
-  ingredientCost: 4
+  ingredientCost: 3
   prepTime: 3
   icon: {fileID: 21300000, guid: f233eb147fcd4134da3714326f4b0c69, type: 3}
+  dish: 1
+  ingredients:
+  - ingredient: {fileID: 11400000, guid: d1c4ba072d05e564890b6f2a60638f98, type: 2}
+    amount: 1

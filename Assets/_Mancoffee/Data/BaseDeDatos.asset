@@ -19,6 +19,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 2b79be9e0c406c643805f519af4a2ccc, type: 2}
   - {fileID: 11400000, guid: e839080c57a3f7a49bac50ef1fffbbd3, type: 2}
   - {fileID: 11400000, guid: c5320c4d9f5377b46be478a8756d36c9, type: 2}
+  - {fileID: 11400000, guid: d2cc79d5db8dc19428dcb833366b9542, type: 2}
   - {fileID: 11400000, guid: a103ebfb7b3168c44b6e2df84cd5bc54, type: 2}
   products:
   - {fileID: 11400000, guid: 0d271b0e974f22b42b4e456b9197f61e, type: 2}
@@ -31,3 +32,15 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 117fe0e8fbc9f244d889d4f07f757987, type: 2}
   - {fileID: 11400000, guid: a0b61db1506ef334e8545296ae716fb0, type: 2}
   - {fileID: 11400000, guid: be4432eae62a4c04d8cf9b00a421e724, type: 2}
+  ingredients:
+  - {fileID: 11400000, guid: 0b0d08d81aac6b94cb719cc500495798, type: 2}
+  - {fileID: 11400000, guid: e57d9343d2b1a804d87db313ecf722bf, type: 2}
+  - {fileID: 11400000, guid: d7718a0868487c347928668971457e2f, type: 2}
+  - {fileID: 11400000, guid: ccd104198d0805445b12b20050cc30c1, type: 2}
+  - {fileID: 11400000, guid: d1c4ba072d05e564890b6f2a60638f98, type: 2}
+  - {fileID: 11400000, guid: 2f6d191c01d59e44daa097c4c30cc321, type: 2}
+  disposableCup: {fileID: 11400000, guid: 2f6d191c01d59e44daa097c4c30cc321, type: 2}
+  dirtyCupIcon: {fileID: 21300000, guid: 691dd30b27672f742be13026c5ef008f, type: 3}
+  dirtyPlateIcon: {fileID: 21300000, guid: ff4a9e702e1f11e4eb354987e57001c0, type: 3}
+  steamIcon: {fileID: 21300000, guid: 97abd1e5d9f93cf41b5d70ffa25a316d, type: 3}
+  takeawayIcon: {fileID: 21300000, guid: 497455bba92977649b9eabbeab18dafc, type: 3}

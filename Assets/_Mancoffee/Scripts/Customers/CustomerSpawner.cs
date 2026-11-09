@@ -7,7 +7,9 @@ using UnityEngine.InputSystem;
 namespace Mancoffee.Customers
 {
     /// <summary>
-    /// Hace llegar clientes mientras el local está abierto. Con más reputación, llegan más seguido.
+    /// Hace llegar clientes mientras el local está abierto, en oleadas según la hora:
+    /// oficinistas a la mañana y al mediodía, estudiantes a media mañana y a la tarde, turistas a la merienda.
+    /// Con más reputación llega más gente.
     /// </summary>
     public class CustomerSpawner : MonoBehaviour
     {
@@ -15,15 +17,9 @@ namespace Mancoffee.Customers
         [SerializeField] private Customer customerPrefab;
         [SerializeField] private Transform customersParent;
 
-        [Tooltip("Segundos entre llegadas con reputación media (3/5).")]
-        [SerializeField] private Vector2 spawnInterval = new(7f, 13f);
-        [SerializeField] private int maxCustomers = 10;
-
-        [SerializeField] private Color[] tints =
-        {
-            new(0.95f, 0.55f, 0.45f), new(0.5f, 0.7f, 0.95f), new(0.65f, 0.9f, 0.6f),
-            new(0.95f, 0.85f, 0.45f), new(0.8f, 0.6f, 0.95f), new(0.6f, 0.9f, 0.9f)
-        };
+        [Tooltip("Segundos entre llegadas cuando el peso total de la hora es 1 y la reputación es 3.")]
+        [SerializeField] private Vector2 spawnInterval = new(7f, 14f);
+        [SerializeField] private int maxCustomers = 14;
 
         private readonly List<Customer> active = new();
         private float spawnTimer = 3f;
@@ -32,33 +28,73 @@ namespace Mancoffee.Customers
         public IReadOnlyList<Customer> Active => active;
 
         private bool IsOpen => DayCycle.Instance == null || DayCycle.Instance.IsOpen;
+        private float Minutes => DayCycle.Instance != null ? DayCycle.Instance.Minutes : 9 * 60f;
+
+        /// <summary>Cuánta gente llega a esta hora (suma de los tipos). Sirve para el pronóstico de la pizarra.</summary>
+        public float RushAt(float minutes)
+        {
+            float total = 0f;
+            foreach (CustomerProfile p in CustomerProfile.All) total += p.WeightAt(minutes);
+            return total;
+        }
+
+        /// <summary>El tipo que más llega a esta hora.</summary>
+        public CustomerProfile DominantAt(float minutes)
+        {
+            CustomerProfile best = null;
+            float bestWeight = 0f;
+            foreach (CustomerProfile p in CustomerProfile.All)
+            {
+                float w = p.WeightAt(minutes);
+                if (w <= bestWeight) continue;
+                best = p;
+                bestWeight = w;
+            }
+            return best;
+        }
 
         private void Update()
         {
             if (IsOpen)
             {
-                spawnTimer -= Time.deltaTime;
+                float rush = RushAt(Minutes);
+                float reputation = CafeState.Instance != null ? CafeState.Instance.Reputation : 3f;
+                // Reputación 1 → llega ~55% de la gente; reputación 5 → ~160%.
+                float repFactor = Mathf.Lerp(0.55f, 1.6f, (reputation - 1f) / 4f);
+                spawnTimer -= Time.deltaTime * rush * repFactor;
                 if (spawnTimer <= 0f)
                 {
-                    float reputation = CafeState.Instance != null ? CafeState.Instance.Reputation : 3f;
-                    // Reputación 1 → llegan cada ~1.8x del intervalo; reputación 5 → cada ~0.6x.
-                    float factor = Mathf.Lerp(1.8f, 0.6f, (reputation - 1f) / 4f);
-                    spawnTimer = Random.Range(spawnInterval.x, spawnInterval.y) * factor;
-                    Spawn();
+                    spawnTimer = Random.Range(spawnInterval.x, spawnInterval.y);
+                    Spawn(PickProfile());
                 }
             }
 
             // Atajo de prueba: traer un cliente ya.
             Keyboard kb = Keyboard.current;
-            if (kb != null && kb.cKey.wasPressedThisFrame && IsOpen && !UiBlocker.ModalOpen) Spawn();
+            if (kb != null && kb.cKey.wasPressedThisFrame && IsOpen && !UiBlocker.ModalOpen) Spawn(PickProfile());
         }
 
-        public Customer Spawn()
+        private CustomerProfile PickProfile()
+        {
+            float total = RushAt(Minutes);
+            if (total <= 0.001f) return CustomerProfile.All[Random.Range(0, CustomerProfile.All.Length)];
+            float pick = Random.Range(0f, total);
+            foreach (CustomerProfile p in CustomerProfile.All)
+            {
+                pick -= p.WeightAt(Minutes);
+                if (pick <= 0f) return p;
+            }
+            return CustomerProfile.All[CustomerProfile.All.Length - 1];
+        }
+
+        public Customer Spawn() => Spawn(PickProfile());
+
+        public Customer Spawn(CustomerProfile profile)
         {
             if (active.Count >= maxCustomers) return null;
 
             Customer customer = Instantiate(customerPrefab, customersParent);
-            customer.Init(grid, this, tints[Random.Range(0, tints.Length)]);
+            customer.Init(grid, this, profile);
             active.Add(customer);
             return customer;
         }

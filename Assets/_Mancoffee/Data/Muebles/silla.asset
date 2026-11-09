@@ -17,5 +17,7 @@ MonoBehaviour:
   category: 1
   size: {x: 1, y: 1}
   price: 15
+  maintenanceEvery: 0
+  isSink: 0
   sprites:
   - {fileID: 21300000, guid: e6b24848bf608cb4fbc5ff8ba8aa573a, type: 3}

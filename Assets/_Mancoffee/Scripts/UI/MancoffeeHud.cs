@@ -63,6 +63,9 @@ namespace Mancoffee.UI
         private OptionsView options;
         private DayReportView report;
         private StartMenuView startMenu;
+        private SuppliesView supplies;
+        private DespensaView despensa;
+        private DebugView debug;
 
         private readonly Dictionary<HudPanel, VisualElement> panels = new();
         private HudPanel openPanel = HudPanel.None;
@@ -140,6 +143,7 @@ namespace Mancoffee.UI
 
             rail = new TicketRailView(baseLayer, ctx);
             chalkboard = new ChalkboardView(baseLayer, ctx);
+            supplies = new SuppliesView(baseLayer, ctx);
             compactBoard = new CompactBoardView(baseLayer, ctx);
             catalog = new BuildCatalogView(baseLayer, ctx);
             receipt = new ReceiptView(baseLayer, ctx);
@@ -154,6 +158,10 @@ namespace Mancoffee.UI
             carta = new CartaView(panelLayer, ctx);
             finance = new FinanceView(panelLayer, ctx);
             options = new OptionsView(panelLayer, ctx);
+            despensa = new DespensaView(panelLayer, ctx);
+            debug = new DebugView(panelLayer, ctx);
+            panels[HudPanel.Despensa] = despensa.Root;
+            panels[HudPanel.Pruebas] = debug.Root;
             panels[HudPanel.Personal] = staffBoard.Root;
             panels[HudPanel.Carta] = carta.Root;
             panels[HudPanel.Finanzas] = finance.Root;
@@ -260,6 +268,8 @@ namespace Mancoffee.UI
             if (kb.tKey.wasPressedThisFrame) TogglePanel(HudPanel.Personal);
             if (kb.mKey.wasPressedThisFrame) TogglePanel(HudPanel.Carta);
             if (kb.fKey.wasPressedThisFrame) TogglePanel(HudPanel.Finanzas);
+            if (kb.iKey.wasPressedThisFrame) TogglePanel(HudPanel.Despensa);
+            if (kb.f1Key.wasPressedThisFrame) TogglePanel(HudPanel.Pruebas);
         }
 
         private void HandleEscape(bool modal)
@@ -290,6 +300,7 @@ namespace Mancoffee.UI
             if (!playing) return;
 
             UI.Show(chalkboard.Root, !building);
+            UI.Show(supplies.Root, !building);
             UI.Show(rail.Root, !building);
             UI.Show(polaroids.Root, !building);
             UI.Show(compactBoard.Root, building);
@@ -306,6 +317,7 @@ namespace Mancoffee.UI
             else
             {
                 chalkboard.Refresh();
+                supplies.Refresh();
                 rail.Refresh();
                 polaroids.Refresh();
             }
@@ -321,6 +333,7 @@ namespace Mancoffee.UI
                 case HudPanel.Carta: carta.Refresh(); break;
                 case HudPanel.Finanzas: finance.Refresh(); break;
                 case HudPanel.Opciones: options.Refresh(); break;
+                case HudPanel.Despensa: despensa.Refresh(); break;
             }
         }
     }

@@ -36,6 +36,12 @@ namespace Mancoffee.Building
         /// <summary>Punto usado para el orden de dibujado (centro de su huella).</summary>
         public Vector3 SortPosition => transform.position;
 
+        /// <summary>Vajilla sucia y desgaste.</summary>
+        public FurnitureState State => GetComponent<FurnitureState>();
+
+        /// <summary>"Mesa 3" para las mesas; si no, el nombre del mueble.</summary>
+        public string Label => TableNumber > 0 ? $"Mesa {TableNumber}" : Data.displayName;
+
         public void Init(FurnitureData data, GridManager gridManager, SpriteRenderer renderer, Vector2Int origin, int rotation)
         {
             Data = data;
@@ -77,6 +83,7 @@ namespace Mancoffee.Building
 
             var furniture = root.AddComponent<PlacedFurniture>();
             furniture.Init(data, grid, renderer, origin, rotation);
+            root.AddComponent<FurnitureState>().Init(furniture, renderer);
             return furniture;
         }
     }

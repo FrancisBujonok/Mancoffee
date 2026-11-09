@@ -31,6 +31,7 @@ namespace Mancoffee.EditorTools
         private const string FurnitureFolder = Root + "/Data/Muebles";
         private const string ProductFolder = Root + "/Data/Productos";
         private const string FloorFolder = Root + "/Data/Suelos";
+        private const string IngredientFolder = Root + "/Data/Insumos";
         private const string DatabasePath = Root + "/Data/BaseDeDatos.asset";
         private const string TileFolder = Root + "/Tiles";
         private const string PrefabFolder = Root + "/Prefabs";
@@ -49,6 +50,8 @@ namespace Mancoffee.EditorTools
             public FurnitureCategory category;
             public int w, d, height, price;
             public Color color;
+            public int maintenance;
+            public bool sink;
         }
 
         private static readonly FurnitureSpec[] FurnitureSpecs =
@@ -56,9 +59,10 @@ namespace Mancoffee.EditorTools
             new() { id = "mesa", name = "Mesa", category = FurnitureCategory.Mesa, w = 1, d = 1, height = 12, price = 40, color = new Color(0.58f, 0.38f, 0.22f) },
             new() { id = "silla", name = "Silla", category = FurnitureCategory.Asiento, w = 1, d = 1, height = 8, price = 15, color = new Color(0.78f, 0.58f, 0.36f) },
             new() { id = "mesa_larga", name = "Mesa larga", category = FurnitureCategory.Mesa, w = 2, d = 1, height = 12, price = 70, color = new Color(0.5f, 0.32f, 0.18f) },
-            new() { id = "cafetera", name = "Máquina de café", category = FurnitureCategory.Equipo, w = 1, d = 1, height = 22, price = 250, color = new Color(0.62f, 0.2f, 0.2f) },
+            new() { id = "cafetera", name = "Máquina de café", category = FurnitureCategory.Equipo, w = 1, d = 1, height = 22, price = 250, color = new Color(0.62f, 0.2f, 0.2f), maintenance = 15 },
             new() { id = "vitrina", name = "Vitrina de pastelería", category = FurnitureCategory.Equipo, w = 1, d = 1, height = 16, price = 180, color = new Color(0.72f, 0.84f, 0.92f) },
             new() { id = "mostrador", name = "Mostrador", category = FurnitureCategory.Mostrador, w = 2, d = 1, height = 14, price = 120, color = new Color(0.36f, 0.44f, 0.58f) },
+            new() { id = "bacha", name = "Bacha", category = FurnitureCategory.Equipo, w = 1, d = 1, height = 14, price = 90, color = new Color(0.62f, 0.68f, 0.74f), sink = true },
             new() { id = "planta", name = "Planta", category = FurnitureCategory.Decoracion, w = 1, d = 1, height = 18, price = 25, color = new Color(0.3f, 0.62f, 0.32f) },
         };
 
@@ -83,15 +87,33 @@ namespace Mancoffee.EditorTools
             public int price, cost;
             public float prep;
             public Color liquid;
+            public string uses;
+            public DishKind dish;
         }
+
+        private struct IngredientSpec
+        {
+            public string id, name, unit, pack, icon;
+            public int size, price, shelf, start;
+        }
+
+        private static readonly IngredientSpec[] IngredientSpecs =
+        {
+            new() { id = "granos", name = "Café en grano", unit = "dosis", pack = "Bolsa de 20 dosis", size = 20, price = 24, shelf = 0, start = 2, icon = "beans" },
+            new() { id = "leche", name = "Leche", unit = "porciones", pack = "Sachet de 10 porciones", size = 10, price = 12, shelf = 3, start = 2, icon = "milk" },
+            new() { id = "te", name = "Saquitos de té", unit = "saquitos", pack = "Caja de 20 saquitos", size = 20, price = 10, shelf = 0, start = 1, icon = "tea" },
+            new() { id = "medialunas", name = "Medialunas", unit = "unidades", pack = "Docena de medialunas", size = 12, price = 9, shelf = 1, start = 1, icon = "croissant" },
+            new() { id = "torta", name = "Torta", unit = "porciones", pack = "Torta entera (8 porciones)", size = 8, price = 24, shelf = 2, start = 1, icon = "cake" },
+            new() { id = "vasos", name = "Vasos descartables", unit = "vasos", pack = "Paquete de 25 vasos", size = 25, price = 10, shelf = 0, start = 1, icon = "takeaway" },
+        };
 
         private static readonly ProductSpec[] ProductSpecs =
         {
-            new() { id = "cafe", name = "Café", station = "cafetera", icon = "cup", price = 6, cost = 2, prep = 4f, liquid = new Color(0.4f, 0.24f, 0.14f) },
-            new() { id = "cappuccino", name = "Cappuccino", station = "cafetera", icon = "cup", price = 9, cost = 3, prep = 6f, liquid = new Color(0.88f, 0.76f, 0.6f) },
-            new() { id = "te", name = "Té", station = "cafetera", icon = "cup", price = 5, cost = 1, prep = 3f, liquid = new Color(0.55f, 0.75f, 0.35f) },
-            new() { id = "medialuna", name = "Medialuna", station = "vitrina", icon = "croissant", price = 4, cost = 1, prep = 2f },
-            new() { id = "torta", name = "Porción de torta", station = "vitrina", icon = "cake", price = 11, cost = 4, prep = 3f },
+            new() { id = "cafe", name = "Café", station = "cafetera", icon = "cup", price = 6, cost = 2, prep = 4f, liquid = new Color(0.4f, 0.24f, 0.14f), uses = "granos:1", dish = DishKind.Taza },
+            new() { id = "cappuccino", name = "Cappuccino", station = "cafetera", icon = "cup", price = 9, cost = 3, prep = 6f, liquid = new Color(0.88f, 0.76f, 0.6f), uses = "granos:1,leche:1", dish = DishKind.Taza },
+            new() { id = "te", name = "Té", station = "cafetera", icon = "cup", price = 5, cost = 1, prep = 3f, liquid = new Color(0.55f, 0.75f, 0.35f), uses = "te:1", dish = DishKind.Taza },
+            new() { id = "medialuna", name = "Medialuna", station = "vitrina", icon = "croissant", price = 4, cost = 1, prep = 2f, uses = "medialunas:1", dish = DishKind.Plato },
+            new() { id = "torta", name = "Porción de torta", station = "vitrina", icon = "cake", price = 11, cost = 4, prep = 3f, uses = "torta:1", dish = DishKind.Plato },
         };
 
         // ------------------------------------------------------------------ menú
@@ -164,9 +186,47 @@ namespace Mancoffee.EditorTools
                 data.size = new Vector2Int(spec.w, spec.d);
                 data.price = spec.price;
                 data.sprites = sprites.ToArray();
+                data.maintenanceEvery = spec.maintenance;
+                data.isSink = spec.sink;
                 EditorUtility.SetDirty(data);
                 furniture.Add(data);
             }
+
+            // Insumos
+            var ingredients = new List<IngredientData>();
+            foreach (IngredientSpec spec in IngredientSpecs)
+            {
+                Dictionary<char, Color> palette = Palette();
+                string[] pattern = spec.icon switch
+                {
+                    "beans" => BeansPattern,
+                    "milk" => MilkPattern,
+                    "tea" => TeaPattern,
+                    "croissant" => CroissantPattern,
+                    "cake" => CakePattern,
+                    _ => TakeawayPattern
+                };
+                Sprite icon = SaveSprite($"{ArtFolder}/Insumo_{spec.id}.png", DrawPattern(pattern, palette), new Vector2(0.5f, 0.5f));
+
+                var data = LoadOrCreate<IngredientData>($"{IngredientFolder}/{spec.id}.asset");
+                data.id = spec.id;
+                data.displayName = spec.name;
+                data.unitName = spec.unit;
+                data.packName = spec.pack;
+                data.packSize = spec.size;
+                data.packPrice = spec.price;
+                data.shelfDays = spec.shelf;
+                data.startPacks = spec.start;
+                data.icon = icon;
+                EditorUtility.SetDirty(data);
+                ingredients.Add(data);
+            }
+
+            // Íconos del servicio
+            Sprite dirtyCup = SaveSprite($"{ArtFolder}/Taza_sucia.png", DrawPattern(DirtyCupPattern, Palette()), new Vector2(0.5f, 0f));
+            Sprite dirtyPlate = SaveSprite($"{ArtFolder}/Plato_sucio.png", DrawPattern(DirtyPlatePattern, Palette()), new Vector2(0.5f, 0f));
+            Sprite steam = SaveSprite($"{ArtFolder}/Vapor.png", DrawPattern(SteamPattern, Palette()), new Vector2(0.5f, 0f));
+            Sprite takeaway = AssetDatabase.LoadAssetAtPath<Sprite>($"{ArtFolder}/Insumo_vasos.png");
 
             // Productos
             var products = new List<ProductData>();
@@ -190,6 +250,16 @@ namespace Mancoffee.EditorTools
                 data.ingredientCost = spec.cost;
                 data.prepTime = spec.prep;
                 data.icon = icon;
+                data.dish = spec.dish;
+                data.ingredients = new List<IngredientUse>();
+                foreach (string part in (spec.uses ?? "").Split(','))
+                {
+                    string[] kv = part.Split(':');
+                    if (kv.Length != 2) continue;
+                    IngredientData ingredient = ingredients.Find(i => i.id == kv[0].Trim());
+                    if (ingredient != null) data.ingredients.Add(new IngredientUse { ingredient = ingredient, amount = int.Parse(kv[1]) });
+                }
+                data.ingredientCost = Mathf.Max(1, Mathf.RoundToInt(data.UnitCost));
                 EditorUtility.SetDirty(data);
                 products.Add(data);
             }
@@ -199,6 +269,12 @@ namespace Mancoffee.EditorTools
             db.furniture = furniture;
             db.products = products;
             db.floorTypes = floorTypes;
+            db.ingredients = ingredients;
+            db.disposableCup = ingredients.Find(i => i.id == "vasos");
+            db.dirtyCupIcon = dirtyCup;
+            db.dirtyPlateIcon = dirtyPlate;
+            db.steamIcon = steam;
+            db.takeawayIcon = takeaway;
             EditorUtility.SetDirty(db);
 
             // Restos de versiones anteriores del setup.
@@ -353,6 +429,8 @@ namespace Mancoffee.EditorTools
             var save = systems.AddComponent<SaveSystem>();
             var dayCycle = systems.AddComponent<DayCycle>();
             var bootstrap = systems.AddComponent<GameBootstrap>();
+            var inventory = systems.AddComponent<Inventory>();
+            Wire(inventory, ("database", db));
 
             Wire(gridManager, ("grid", grid), ("floorTilemap", floor), ("database", db),
                  ("entranceTile", AssetDatabase.LoadAssetAtPath<Tile>($"{TileFolder}/Entrada.asset")));
@@ -390,7 +468,7 @@ namespace Mancoffee.EditorTools
 
         private static void EnsureFolders()
         {
-            foreach (string folder in new[] { ArtFolder, FurnitureFolder, ProductFolder, FloorFolder, TileFolder, PrefabFolder, Root + "/Scenes" })
+            foreach (string folder in new[] { ArtFolder, FurnitureFolder, ProductFolder, FloorFolder, IngredientFolder, TileFolder, PrefabFolder, Root + "/Scenes" })
             {
                 if (AssetDatabase.IsValidFolder(folder)) continue;
                 string parent = Path.GetDirectoryName(folder)!.Replace("\\", "/");
@@ -682,6 +760,10 @@ namespace Mancoffee.EditorTools
             ['c'] = new Color(0.96f, 0.88f, 0.7f),
             ['r'] = new Color(0.85f, 0.2f, 0.2f),
             ['g'] = new Color(0.2f, 0.62f, 0.3f),
+            ['b'] = new Color(0.4f, 0.6f, 0.9f),
+            ['k'] = new Color(0.78f, 0.6f, 0.38f),
+            ['s'] = new Color(0.92f, 0.94f, 0.97f),
+            ['q'] = new Color(0.6f, 0.62f, 0.68f),
         };
 
         /// <summary>Dibuja un patrón de texto: la primera fila es la de arriba, '.' es transparente.</summary>
@@ -762,6 +844,90 @@ namespace Mancoffee.EditorTools
             ".o.....o.",
             ".........",
             "........."
+        };
+
+        private static readonly string[] BeansPattern =
+        {
+            ".........",
+            "..ooooo..",
+            ".okkkkko.",
+            ".okkkkko.",
+            ".okolloo.",
+            ".okllllo.",
+            ".okkllko.",
+            ".ooooooo.",
+            "........."
+        };
+
+        private static readonly string[] MilkPattern =
+        {
+            "...ooo...",
+            "..owwwo..",
+            ".owwwwwo.",
+            ".ooooooo.",
+            ".owwwwwo.",
+            ".obbbbbo.",
+            ".owwwwwo.",
+            ".ooooooo.",
+            "........."
+        };
+
+        private static readonly string[] TeaPattern =
+        {
+            ".........",
+            ".ooooooo.",
+            ".ogggggo.",
+            ".ogwwwgo.",
+            ".ogwgwgo.",
+            ".ogwwwgo.",
+            ".ogggggo.",
+            ".ooooooo.",
+            "........."
+        };
+
+        private static readonly string[] TakeawayPattern =
+        {
+            ".ooooooo.",
+            ".okkkkko.",
+            ".owwwwwo.",
+            "..owwwo..",
+            "..okkko..",
+            "..owwwo..",
+            "...ooo...",
+            ".........",
+            "........."
+        };
+
+        private static readonly string[] DirtyCupPattern =
+        {
+            ".oooooo..",
+            ".olwwlo..",
+            ".owlwwooo",
+            ".owwwlo.o",
+            ".olwwwooo",
+            "..owwo...",
+            "ooooooooo"
+        };
+
+        private static readonly string[] DirtyPlatePattern =
+        {
+            "..ooooo..",
+            ".owlwwlo.",
+            "owwwlwwwo",
+            ".ooooooo."
+        };
+
+        private static readonly string[] SteamPattern =
+        {
+            "...qq....",
+            "..qssq...",
+            ".qsssq.q.",
+            ".qssqqsq.",
+            "..qqsssq.",
+            "...qsssq.",
+            "..qssqq..",
+            "..qsq....",
+            "...q....."
         };
 
         private static readonly string[] CakePattern =

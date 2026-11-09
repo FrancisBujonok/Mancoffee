@@ -19,7 +19,9 @@ namespace Mancoffee.UI
         Personal,
         Carta,
         Finanzas,
-        Opciones
+        Opciones,
+        Despensa,
+        Pruebas
     }
 
     /// <summary>Referencias que comparten todas las vistas de la interfaz.</summary>
@@ -137,6 +139,7 @@ namespace Mancoffee.UI
         private readonly VisualElement fill;
         private readonly Label openLabel;
         private readonly Label closeLabel;
+        private readonly Label rush;
         private readonly VisualElement[] speeds = new VisualElement[4];
 
         public ChalkboardView(VisualElement parent, HudContext ctx)
@@ -158,6 +161,7 @@ namespace Mancoffee.UI
             VisualElement labels = UI.El(board, "row-between", "daybar-labels");
             openLabel = UI.Text(labels, "Abre 8:00");
             closeLabel = UI.Text(labels, "Cierra 20:00");
+            rush = UI.Text(board, "", "board-rush");
 
             VisualElement speedRow = UI.El(board, "speed-row");
             IconKind[] icons = { IconKind.Pause, IconKind.Play, IconKind.Fast2, IconKind.Fast3 };
@@ -177,6 +181,7 @@ namespace Mancoffee.UI
             UI.SetFill(fill, d.DayProgress);
             openLabel.text = $"Abre {d.OpenHour}:00";
             closeLabel.text = $"Cierra {d.CloseHour}:00";
+            rush.text = RushText(d);
 
             pill.EnableInClassList("pill--closing", d.Phase == DayPhase.Cerrando);
             pill.EnableInClassList("pill--closed", d.Phase == DayPhase.Resumen);
@@ -188,6 +193,26 @@ namespace Mancoffee.UI
             };
 
             for (int i = 0; i < 4; i++) speeds[i].EnableInClassList("speed-btn--on", d.Speed == i);
+        }
+
+        /// <summary>Quién llega ahora y si se viene un pico (para decidir cuándo lavar o purgar).</summary>
+        private string RushText(DayCycle d)
+        {
+            if (ctx.Spawner == null || !d.IsOpen) return d.Phase == DayPhase.Cerrando ? "Se atiende a los que quedan" : "";
+            float now = ctx.Spawner.RushAt(d.Minutes);
+            for (int ahead = 30; ahead <= 90; ahead += 30)
+            {
+                float later = d.Minutes + ahead;
+                if (later >= d.CloseMinutes) break;
+                if (ctx.Spawner.RushAt(later) > now + 0.6f)
+                {
+                    var who = ctx.Spawner.DominantAt(later);
+                    return $"En {ahead} min: se viene un pico de {who.Name.ToLowerInvariant()}s";
+                }
+            }
+            var dominant = ctx.Spawner.DominantAt(d.Minutes);
+            if (dominant == null || now < 0.3f) return "Ahora: tranquilo";
+            return now > 1.4f ? $"Ahora: pico de {dominant.Name.ToLowerInvariant()}s" : $"Ahora: llegan {dominant.Name.ToLowerInvariant()}s";
         }
     }
 
@@ -396,6 +421,7 @@ namespace Mancoffee.UI
             build = Card("Construir", "B", IconKind.Hammer, "rot-e", () => ctx.Build.SetBuildMode(!ctx.Build.IsBuildMode), out buildKey);
             cards[HudPanel.Personal] = Card("Personal", "T", IconKind.Users, "rot-b", () => ctx.Hud.TogglePanel(HudPanel.Personal), out _);
             cards[HudPanel.Carta] = Card("Menú", "M", IconKind.Book, "rot-a", () => ctx.Hud.TogglePanel(HudPanel.Carta), out _);
+            cards[HudPanel.Despensa] = Card("Despensa", "I", IconKind.Box, "rot-d", () => ctx.Hud.TogglePanel(HudPanel.Despensa), out _);
             cards[HudPanel.Finanzas] = Card("Finanzas", "F", IconKind.Chart, "rot-f", () => ctx.Hud.TogglePanel(HudPanel.Finanzas), out _);
             cards[HudPanel.Opciones] = Card("Opciones", "Esc", IconKind.Gear, "rot-c", () => ctx.Hud.TogglePanel(HudPanel.Opciones), out _);
         }
