@@ -40,7 +40,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: d1c4ba072d05e564890b6f2a60638f98, type: 2}
   - {fileID: 11400000, guid: 2f6d191c01d59e44daa097c4c30cc321, type: 2}
   disposableCup: {fileID: 11400000, guid: 2f6d191c01d59e44daa097c4c30cc321, type: 2}
-  dirtyCupIcon: {fileID: 21300000, guid: 691dd30b27672f742be13026c5ef008f, type: 3}
-  dirtyPlateIcon: {fileID: 21300000, guid: ff4a9e702e1f11e4eb354987e57001c0, type: 3}
-  steamIcon: {fileID: 21300000, guid: 97abd1e5d9f93cf41b5d70ffa25a316d, type: 3}
+  dirtyCupIcon: {fileID: 21300000, guid: ac37440979b1460469e50f356cb18b61, type: 3}
+  dirtyPlateIcon: {fileID: 21300000, guid: df4bc1068881b0a49bf5b61ed9e0bdcf, type: 3}
+  steamIcon: {fileID: 21300000, guid: 1b9ba6addc029ad438c1bcee4f29d694, type: 3}
   takeawayIcon: {fileID: 21300000, guid: 497455bba92977649b9eabbeab18dafc, type: 3}

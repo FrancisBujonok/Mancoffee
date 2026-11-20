@@ -283,6 +283,9 @@ namespace Mancoffee.EditorTools
 
             AssetDatabase.SaveAssets();
             Debug.Log("[Mancoffee] Arte y datos generados.");
+
+            // Si está el arte dibujado (Art/EstiloA) reemplaza a los cubos provisionales.
+            MancoffeeArtImporter.ApplyIfPresent();
         }
 
         // ------------------------------------------------------------------ prefabs

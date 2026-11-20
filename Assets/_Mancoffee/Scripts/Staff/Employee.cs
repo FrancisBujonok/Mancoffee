@@ -161,6 +161,17 @@ namespace Mancoffee.Staff
 
         private void Awake() => mover = GetComponent<GridMover>();
 
+        /// <summary>Empleados activos en la escena (para que los muebles sepan si alguien los está usando).</summary>
+        public static readonly List<Employee> Active = new();
+
+        private void OnEnable() => Active.Add(this);
+        private void OnDisable() => Active.Remove(this);
+
+        /// <summary>El mueble que está usando ahora mismo: la máquina donde prepara o la bacha donde lava.</summary>
+        public PlacedFurniture WorkingAt =>
+            phase == Phase.Preparing ? station :
+            phase == Phase.WorkingAtTarget && current != null && current.Type == TaskType.Lavar ? current.Target : null;
+
         public void Init(GridManager gridManager, string displayName, StaffMode mode, int salary, Color tint)
         {
             grid = gridManager;

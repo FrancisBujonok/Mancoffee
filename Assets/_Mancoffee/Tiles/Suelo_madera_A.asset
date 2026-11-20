@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 13312, guid: 0000000000000000e000000000000000, type: 0}
   m_Name: Suelo_madera_A
   m_EditorClassIdentifier: UnityEngine.dll::UnityEngine.Tilemaps.Tile
-  m_Sprite: {fileID: 21300000, guid: cd9b9b5e964a21745b3f63a139d7a0c2, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 25ea98931eaacd44c8926762fe2fa9f0, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_Transform:
     e00: 1

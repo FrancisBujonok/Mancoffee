@@ -9,16 +9,19 @@ namespace Mancoffee.Building
     /// <summary>
     /// Lo que le pasa a un mueble mientras se usa: la vajilla sucia que queda en una mesa o en la bacha,
     /// y el desgaste de las máquinas que necesitan purga (largan vapor y trabajan a mitad de velocidad).
+    /// También elige qué se dibuja: la versión sucia, la animación de reposo y la capa animada de trabajo o de alerta.
     /// </summary>
     [DisallowMultipleComponent]
     public class FurnitureState : MonoBehaviour
     {
         private PlacedFurniture furniture;
         private SpriteRenderer furnitureSprite;
+        private SpriteRenderer animOverlay;
         private SpriteRenderer dishesOverlay;
         private SpriteRenderer steam;
         private readonly int[] dirty = new int[2];
         private float steamTime;
+        private float idlePhase;
 
         public PlacedFurniture Furniture => furniture;
         public int Uses { get; private set; }
@@ -35,11 +38,24 @@ namespace Mancoffee.Building
         public int DirtyPlates => dirty[(int)DishKind.Plato];
         public int DirtyCount => dirty[0] + dirty[1];
 
+        /// <summary>Hay un empleado usándolo ahora (preparando o lavando).</summary>
+        public bool InUse
+        {
+            get
+            {
+                foreach (Employee e in Employee.Active)
+                    if (e != null && e.WorkingAt == furniture) return true;
+                return false;
+            }
+        }
+
         public void Init(PlacedFurniture placed, SpriteRenderer sprite)
         {
             furniture = placed;
             furnitureSprite = sprite;
+            idlePhase = Random.value * 10f;
 
+            animOverlay = CreateChild("Animacion", 1);
             dishesOverlay = CreateChild("Vajilla", 2);
             steam = CreateChild("Vapor", 3);
             Refresh();
@@ -56,6 +72,9 @@ namespace Mancoffee.Building
         }
 
         private static GameDatabase Db => GridManager.Instance != null ? GridManager.Instance.Database : null;
+
+        private bool HasDirtyArt => furniture != null && furniture.Data.dirtySprites != null && furniture.Data.dirtySprites.Length > 0;
+        private bool HasAlertArt => furniture != null && furniture.Data.alertFrames != null && furniture.Data.alertFrames.Length > 0;
 
         // =========================== Máquinas ===========================
 
@@ -115,44 +134,68 @@ namespace Mancoffee.Building
 
         // =========================== Visual ===========================
 
+        /// <summary>Íconos sueltos: solo para muebles que no tienen dibujo propio del estado.</summary>
         private void Refresh()
         {
             if (dishesOverlay == null || furnitureSprite == null) return;
             GameDatabase db = Db;
-            Bounds b = furnitureSprite.bounds;
+            bool visible = furnitureSprite.enabled;
 
-            Sprite dishSprite = db == null ? null : DirtyCups > 0 ? db.dirtyCupIcon : DirtyPlates > 0 ? db.dirtyPlateIcon : null;
-            dishesOverlay.enabled = dishSprite != null && furnitureSprite.enabled;
+            Sprite dishSprite = db == null || HasDirtyArt ? null : DirtyCups > 0 ? db.dirtyCupIcon : DirtyPlates > 0 ? db.dirtyPlateIcon : null;
+            dishesOverlay.enabled = dishSprite != null && visible;
             dishesOverlay.sprite = dishSprite;
-            dishesOverlay.transform.position = new Vector3(b.center.x, b.max.y - 3f / 32f, 0f);
 
-            bool showSteam = NeedsPurge && db != null && db.steamIcon != null;
+            bool showSteam = NeedsPurge && !HasAlertArt && db != null && db.steamIcon != null && visible;
             steam.enabled = showSteam;
             steam.sprite = showSteam ? db.steamIcon : null;
-            steam.transform.position = new Vector3(b.center.x, b.max.y + 2f / 32f, 0f);
         }
 
-        private void Update()
+        private static Sprite Frame(Sprite[] frames, float fps, float time)
         {
-            if (steam == null || !steam.enabled) return;
-            steamTime += Time.deltaTime;
-            Bounds b = furnitureSprite.bounds;
-            float bob = Mathf.Round(Mathf.Sin(steamTime * 4f) * 1.5f) / 32f;
-            steam.transform.position = new Vector3(b.center.x, b.max.y + 2f / 32f + bob, 0f);
+            if (frames == null || frames.Length == 0) return null;
+            int i = Mathf.FloorToInt(time * Mathf.Max(0.1f, fps)) % frames.Length;
+            return frames[i];
         }
 
         private void LateUpdate()
         {
-            // Si el mueble se oculta (lo están moviendo) la vajilla y el vapor también.
-            if (furnitureSprite == null) return;
-            if (!furnitureSprite.enabled && (dishesOverlay.enabled || steam.enabled))
+            if (furnitureSprite == null || furniture == null || furniture.Data == null) return;
+            FurnitureData data = furniture.Data;
+
+            // Si el mueble se oculta (lo están moviendo) se ocultan también sus capas.
+            if (!furnitureSprite.enabled)
             {
-                dishesOverlay.enabled = false;
-                steam.enabled = false;
+                animOverlay.enabled = dishesOverlay.enabled = steam.enabled = false;
+                return;
             }
-            else if (furnitureSprite.enabled && !dishesOverlay.enabled && DirtyCount > 0) Refresh();
-            else if (furnitureSprite.enabled && dishesOverlay.enabled) dishesOverlay.transform.position =
-                new Vector3(furnitureSprite.bounds.center.x, furnitureSprite.bounds.max.y - 3f / 32f, 0f);
+
+            // Sprite principal: sucio > animación de reposo > el de la rotación.
+            float t = Time.time + idlePhase;
+            Sprite main = DirtyCount > 0 ? data.GetDirtySprite(furniture.Rotation) : null;
+            if (main == null && data.idleFrames != null && data.idleFrames.Length > 0 && data.sprites.Length <= 1)
+                main = Frame(data.idleFrames, data.idleFps, t);
+            if (main == null) main = data.GetSprite(furniture.Rotation);
+            if (furnitureSprite.sprite != main) furnitureSprite.sprite = main;
+
+            // Capa animada: trabajando > pidiendo mantenimiento.
+            Sprite overlay = null;
+            if (data.workFrames != null && data.workFrames.Length > 0 && InUse) overlay = Frame(data.workFrames, data.workFps, Time.time);
+            else if (NeedsPurge && HasAlertArt) overlay = Frame(data.alertFrames, data.alertFps, Time.time);
+            animOverlay.enabled = overlay != null;
+            animOverlay.sprite = overlay;
+            if (overlay != null) animOverlay.transform.position = furnitureSprite.transform.position;
+
+            // Íconos de respaldo.
+            if (!dishesOverlay.enabled && !steam.enabled && (DirtyCount > 0 || NeedsPurge)) Refresh();
+            Bounds b = furnitureSprite.bounds;
+            if (dishesOverlay.enabled)
+                dishesOverlay.transform.position = new Vector3(b.center.x, b.max.y - 3f / 32f, 0f);
+            if (steam.enabled)
+            {
+                steamTime += Time.deltaTime;
+                float bob = Mathf.Round(Mathf.Sin(steamTime * 4f) * 1.5f) / 32f;
+                steam.transform.position = new Vector3(b.center.x, b.max.y + 2f / 32f + bob, 0f);
+            }
         }
 
         private void OnDestroy()

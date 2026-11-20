@@ -37,6 +37,28 @@ namespace Mancoffee.Data
         [Tooltip("Un sprite por rotación (0 a 3). Si hay menos sprites que rotaciones, se reutilizan en ciclo.")]
         public Sprite[] sprites = new Sprite[0];
 
+        [Header("Estados y animaciones (opcional)")]
+        [Tooltip("Versión con vajilla sucia, una por rotación. Si está vacío se muestra un ícono encima.")]
+        public Sprite[] dirtySprites = new Sprite[0];
+
+        [Tooltip("Cuadros que se repiten todo el tiempo (planta que se mece, brillo de la vitrina). Reemplazan al sprite.")]
+        public Sprite[] idleFrames = new Sprite[0];
+        public float idleFps = 4f;
+
+        [Tooltip("Capa que se dibuja encima mientras un empleado lo usa (sale café, corre el agua).")]
+        public Sprite[] workFrames = new Sprite[0];
+        public float workFps = 6f;
+
+        [Tooltip("Capa que se dibuja encima cuando necesita mantenimiento (vapor).")]
+        public Sprite[] alertFrames = new Sprite[0];
+        public float alertFps = 5f;
+
+        public Sprite GetDirtySprite(int rotation)
+        {
+            if (dirtySprites == null || dirtySprites.Length == 0) return null;
+            return dirtySprites[rotation % dirtySprites.Length];
+        }
+
         /// <summary>En rotaciones impares el ancho y el fondo se intercambian.</summary>
         public Vector2Int GetSize(int rotation)
         {

@@ -20,4 +20,14 @@ MonoBehaviour:
   maintenanceEvery: 0
   isSink: 0
   sprites:
-  - {fileID: 21300000, guid: e6b24848bf608cb4fbc5ff8ba8aa573a, type: 3}
+  - {fileID: 21300000, guid: 391f655f578ea5341aa87aac9e7cbacf, type: 3}
+  - {fileID: 21300000, guid: 63f5af226ac5c584fa5aef83fec8351c, type: 3}
+  - {fileID: 21300000, guid: 44cd7edf9e63fc64aa5a1a8a4de0ac4a, type: 3}
+  - {fileID: 21300000, guid: e9fc1e139e1d99549b46d199804bc844, type: 3}
+  dirtySprites: []
+  idleFrames: []
+  idleFps: 4
+  workFrames: []
+  workFps: 6
+  alertFrames: []
+  alertFps: 5

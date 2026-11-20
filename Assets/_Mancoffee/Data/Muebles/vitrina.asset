@@ -20,4 +20,24 @@ MonoBehaviour:
   maintenanceEvery: 0
   isSink: 0
   sprites:
-  - {fileID: 21300000, guid: 32644f102b165a54594402a0230d2326, type: 3}
+  - {fileID: 21300000, guid: 797533d5c8fed434185f04fb7549d48a, type: 3}
+  dirtySprites: []
+  idleFrames:
+  - {fileID: 21300000, guid: 797533d5c8fed434185f04fb7549d48a, type: 3}
+  - {fileID: 21300000, guid: 797533d5c8fed434185f04fb7549d48a, type: 3}
+  - {fileID: 21300000, guid: 797533d5c8fed434185f04fb7549d48a, type: 3}
+  - {fileID: 21300000, guid: 797533d5c8fed434185f04fb7549d48a, type: 3}
+  - {fileID: 21300000, guid: 797533d5c8fed434185f04fb7549d48a, type: 3}
+  - {fileID: 21300000, guid: 797533d5c8fed434185f04fb7549d48a, type: 3}
+  - {fileID: 21300000, guid: 797533d5c8fed434185f04fb7549d48a, type: 3}
+  - {fileID: 21300000, guid: 797533d5c8fed434185f04fb7549d48a, type: 3}
+  - {fileID: 21300000, guid: 797533d5c8fed434185f04fb7549d48a, type: 3}
+  - {fileID: 21300000, guid: 797533d5c8fed434185f04fb7549d48a, type: 3}
+  - {fileID: 21300000, guid: 17402db82e439244c8a0eaf0cd400bc9, type: 3}
+  - {fileID: 21300000, guid: f3c14d7d7b56cd74b82157094f3d0c75, type: 3}
+  - {fileID: 21300000, guid: 29987308d6ade6046bad7b9a5bd689ee, type: 3}
+  idleFps: 6
+  workFrames: []
+  workFps: 6
+  alertFrames: []
+  alertFps: 5

@@ -1,0 +1,413 @@
+{
+ "files": [
+  {
+   "name": "mesa_r0",
+   "px": 0.5,
+   "py": 0.06061
+  },
+  {
+   "name": "mesa_sucia_r0",
+   "px": 0.5,
+   "py": 0.06061
+  },
+  {
+   "name": "silla_r0",
+   "px": 0.5,
+   "py": 0.06061
+  },
+  {
+   "name": "silla_r1",
+   "px": 0.5,
+   "py": 0.06061
+  },
+  {
+   "name": "silla_r2",
+   "px": 0.5,
+   "py": 0.06061
+  },
+  {
+   "name": "silla_r3",
+   "px": 0.5,
+   "py": 0.06061
+  },
+  {
+   "name": "mesa_larga_r0",
+   "px": 0.35714,
+   "py": 0.05405
+  },
+  {
+   "name": "mesa_larga_sucia_r0",
+   "px": 0.35714,
+   "py": 0.05405
+  },
+  {
+   "name": "mesa_larga_r1",
+   "px": 0.64286,
+   "py": 0.05405
+  },
+  {
+   "name": "mesa_larga_sucia_r1",
+   "px": 0.64286,
+   "py": 0.05405
+  },
+  {
+   "name": "cafetera_r0",
+   "px": 0.5,
+   "py": 0.05128
+  },
+  {
+   "name": "cafetera_trabajo_0",
+   "px": 0.5,
+   "py": 0.05128
+  },
+  {
+   "name": "cafetera_vapor_0",
+   "px": 0.5,
+   "py": 0.05128
+  },
+  {
+   "name": "cafetera_trabajo_1",
+   "px": 0.5,
+   "py": 0.05128
+  },
+  {
+   "name": "cafetera_vapor_1",
+   "px": 0.5,
+   "py": 0.05128
+  },
+  {
+   "name": "cafetera_trabajo_2",
+   "px": 0.5,
+   "py": 0.05128
+  },
+  {
+   "name": "cafetera_vapor_2",
+   "px": 0.5,
+   "py": 0.05128
+  },
+  {
+   "name": "cafetera_trabajo_3",
+   "px": 0.5,
+   "py": 0.05128
+  },
+  {
+   "name": "cafetera_vapor_3",
+   "px": 0.5,
+   "py": 0.05128
+  },
+  {
+   "name": "vitrina_r0",
+   "px": 0.5,
+   "py": 0.05714
+  },
+  {
+   "name": "vitrina_brillo_0",
+   "px": 0.5,
+   "py": 0.05714
+  },
+  {
+   "name": "vitrina_brillo_1",
+   "px": 0.5,
+   "py": 0.05714
+  },
+  {
+   "name": "vitrina_brillo_2",
+   "px": 0.5,
+   "py": 0.05714
+  },
+  {
+   "name": "mostrador_r0",
+   "px": 0.35714,
+   "py": 0.05128
+  },
+  {
+   "name": "mostrador_r1",
+   "px": 0.64286,
+   "py": 0.05128
+  },
+  {
+   "name": "bacha_r0",
+   "px": 0.5,
+   "py": 0.05882
+  },
+  {
+   "name": "bacha_sucia_r0",
+   "px": 0.5,
+   "py": 0.05882
+  },
+  {
+   "name": "bacha_lavando_0",
+   "px": 0.5,
+   "py": 0.05882
+  },
+  {
+   "name": "bacha_lavando_1",
+   "px": 0.5,
+   "py": 0.05882
+  },
+  {
+   "name": "bacha_lavando_2",
+   "px": 0.5,
+   "py": 0.05882
+  },
+  {
+   "name": "bacha_lavando_3",
+   "px": 0.5,
+   "py": 0.05882
+  },
+  {
+   "name": "planta_mece_0",
+   "px": 0.5,
+   "py": 0.05556
+  },
+  {
+   "name": "planta_mece_1",
+   "px": 0.5,
+   "py": 0.05556
+  },
+  {
+   "name": "planta_mece_2",
+   "px": 0.5,
+   "py": 0.05556
+  },
+  {
+   "name": "planta_mece_3",
+   "px": 0.5,
+   "py": 0.05556
+  },
+  {
+   "name": "Suelo_madera_A",
+   "px": 0.5,
+   "py": 0.5
+  },
+  {
+   "name": "Suelo_madera_B",
+   "px": 0.5,
+   "py": 0.5
+  },
+  {
+   "name": "Suelo_baldosa_A",
+   "px": 0.5,
+   "py": 0.5
+  },
+  {
+   "name": "Suelo_baldosa_B",
+   "px": 0.5,
+   "py": 0.5
+  },
+  {
+   "name": "Suelo_alfombra_A",
+   "px": 0.5,
+   "py": 0.5
+  },
+  {
+   "name": "Suelo_alfombra_B",
+   "px": 0.5,
+   "py": 0.5
+  },
+  {
+   "name": "Suelo_cemento_A",
+   "px": 0.5,
+   "py": 0.5
+  },
+  {
+   "name": "Suelo_cemento_B",
+   "px": 0.5,
+   "py": 0.5
+  },
+  {
+   "name": "Icono_vajilla_sucia",
+   "px": 0.5,
+   "py": 0.0
+  },
+  {
+   "name": "Icono_platos_sucios",
+   "px": 0.5,
+   "py": 0.0
+  },
+  {
+   "name": "Icono_vapor",
+   "px": 0.5,
+   "py": 0.0
+  }
+ ],
+ "furniture": [
+  {
+   "id": "mesa",
+   "sprites": [
+    "mesa_r0"
+   ],
+   "dirty": [
+    "mesa_sucia_r0"
+   ],
+   "idle": [],
+   "idleFps": 0,
+   "work": [],
+   "workFps": 0,
+   "alert": [],
+   "alertFps": 0
+  },
+  {
+   "id": "silla",
+   "sprites": [
+    "silla_r0",
+    "silla_r1",
+    "silla_r2",
+    "silla_r3"
+   ],
+   "dirty": [],
+   "idle": [],
+   "idleFps": 0,
+   "work": [],
+   "workFps": 0,
+   "alert": [],
+   "alertFps": 0
+  },
+  {
+   "id": "mesa_larga",
+   "sprites": [
+    "mesa_larga_r0",
+    "mesa_larga_r1"
+   ],
+   "dirty": [
+    "mesa_larga_sucia_r0",
+    "mesa_larga_sucia_r1"
+   ],
+   "idle": [],
+   "idleFps": 0,
+   "work": [],
+   "workFps": 0,
+   "alert": [],
+   "alertFps": 0
+  },
+  {
+   "id": "cafetera",
+   "sprites": [
+    "cafetera_r0"
+   ],
+   "dirty": [],
+   "idle": [],
+   "idleFps": 0,
+   "work": [
+    "cafetera_trabajo_0",
+    "cafetera_trabajo_1",
+    "cafetera_trabajo_2",
+    "cafetera_trabajo_3"
+   ],
+   "workFps": 6,
+   "alert": [
+    "cafetera_vapor_0",
+    "cafetera_vapor_1",
+    "cafetera_vapor_2",
+    "cafetera_vapor_3"
+   ],
+   "alertFps": 5
+  },
+  {
+   "id": "vitrina",
+   "sprites": [
+    "vitrina_r0"
+   ],
+   "dirty": [],
+   "idle": [
+    "vitrina_r0",
+    "vitrina_r0",
+    "vitrina_r0",
+    "vitrina_r0",
+    "vitrina_r0",
+    "vitrina_r0",
+    "vitrina_r0",
+    "vitrina_r0",
+    "vitrina_r0",
+    "vitrina_r0",
+    "vitrina_brillo_0",
+    "vitrina_brillo_1",
+    "vitrina_brillo_2"
+   ],
+   "idleFps": 6,
+   "work": [],
+   "workFps": 0,
+   "alert": [],
+   "alertFps": 0
+  },
+  {
+   "id": "mostrador",
+   "sprites": [
+    "mostrador_r0",
+    "mostrador_r1"
+   ],
+   "dirty": [],
+   "idle": [],
+   "idleFps": 0,
+   "work": [],
+   "workFps": 0,
+   "alert": [],
+   "alertFps": 0
+  },
+  {
+   "id": "bacha",
+   "sprites": [
+    "bacha_r0"
+   ],
+   "dirty": [
+    "bacha_sucia_r0"
+   ],
+   "idle": [],
+   "idleFps": 0,
+   "work": [
+    "bacha_lavando_0",
+    "bacha_lavando_1",
+    "bacha_lavando_2",
+    "bacha_lavando_3"
+   ],
+   "workFps": 8,
+   "alert": [],
+   "alertFps": 0
+  },
+  {
+   "id": "planta",
+   "sprites": [
+    "planta_mece_0"
+   ],
+   "dirty": [],
+   "idle": [
+    "planta_mece_0",
+    "planta_mece_1",
+    "planta_mece_2",
+    "planta_mece_3"
+   ],
+   "idleFps": 2.5,
+   "work": [],
+   "workFps": 0,
+   "alert": [],
+   "alertFps": 0
+  }
+ ],
+ "floors": [
+  {
+   "id": "madera",
+   "a": "Suelo_madera_A",
+   "b": "Suelo_madera_B"
+  },
+  {
+   "id": "baldosa",
+   "a": "Suelo_baldosa_A",
+   "b": "Suelo_baldosa_B"
+  },
+  {
+   "id": "alfombra",
+   "a": "Suelo_alfombra_A",
+   "b": "Suelo_alfombra_B"
+  },
+  {
+   "id": "cemento",
+   "a": "Suelo_cemento_A",
+   "b": "Suelo_cemento_B"
+  }
+ ],
+ "icons": {
+  "dirtyCup": "Icono_vajilla_sucia",
+  "dirtyPlate": "Icono_platos_sucios",
+  "steam": "Icono_vapor"
+ }
+}
